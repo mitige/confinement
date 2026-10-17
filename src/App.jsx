@@ -73,9 +73,16 @@ function debugParams() {
 
 function Experience() {
   /*
-   * Maximum by default. `detectQuality` is still used as the starting point when
-   * the adaptive governor is switched on, where a wrong guess only costs a couple
-   * of seconds of adaptation.
+   * Read first: `quality` is derived from it during its own initialisation, and
+   * referencing it before this line is a temporal-dead-zone crash that takes the
+   * whole canvas down.
+   */
+  const [debug] = useState(debugParams)
+
+  /*
+   * Maximum by default. `detectQuality` is only consulted when the adaptive
+   * governor is switched on, where a wrong guess costs a couple of seconds of
+   * adaptation rather than the whole session's sharpness.
    */
   const [quality, setQuality] = useState(() => {
     // An explicit request downward always wins.
@@ -84,13 +91,13 @@ function Experience() {
     // to correct it. Without the governor, maximum is the answer.
     return debug.adaptive ? detectQuality() : 'high'
   })
+
   /*
    * Render scale, owned here because it is applied as the Canvas `dpr` prop — the
    * only channel R3F will not overwrite. It changes a handful of times per
    * session, in steps of 0.1, so re-rendering on change is free.
    */
   const [renderScale, setRenderScale] = useState(1)
-  const [debug] = useState(debugParams)
   const [sceneReady, setSceneReady] = useState(false)
   const { activeIndex, timeline, reduced } = useDirector()
 
