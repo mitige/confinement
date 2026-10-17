@@ -1,0 +1,120 @@
+import { useMemo, useRef } from 'react'
+import { useDirector, useDirectorStore, useScrollFrame } from '../scroll/ScrollDirector.jsx'
+import { TIMELINE } from '../data/acts.js'
+import { PROJECT_BY_SLUG } from '../data/projects.js'
+import { clamp, easeOutCubic, window01 } from '../lib/math.js'
+
+/**
+ * The six flagship projects.
+ *
+ * Each is a text beat laid over the machine at full render brightness: a
+ * directional scrim on the left guarantees contrast, and the 3D stays untouched on
+ * the right. That is deliberate — dimming the canvas to make room for type would
+ * waste the shot the camera just made.
+ *
+ * The project's own technical diagram is drawn in 3D by Overlays3D, keyed off the
+ * act slug, so text and geometry cannot disagree about which project is on screen.
+ *
+ * Every element is animated by writing to the DOM from the scroll loop, so a
+ * project act costs zero React renders. Reveals rise and hold; the container's
+ * master fade owns the exit.
+ */
+
+const SIZE_MB = (kb) => `${(kb / 1024).toFixed(1)} MB`
+
+export function ProjectAct() {
+  const { activeIndex } = useDirector()
+  const store = useDirectorStore()
+  const roots = useRef({})
+  const children = useRef({})
+
+  const projects = useMemo(
+    () =>
+      TIMELINE.map((act, index) => ({ act, index }))
+        .filter(({ act }) => act.kind === 'project')
+        .map(({ act, index }) => ({ act, index, project: PROJECT_BY_SLUG[act.slug] }))
+        .filter(({ project }) => Boolean(project)),
+    [],
+  )
+
+  useScrollFrame((s) => {
+    for (const { act, index } of projects) {
+      const local = s.actIndex === index ? s.local : s.actIndex > index ? 1 : 0
+
+      const root = roots.current[act.id]
+      if (root) {
+        const o = window01(local, 0.04, 0.18, 0.8, 0.94)
+        root.style.opacity = o
+        root.style.transform = `translateY(${(1 - o) * 20}px)`
+      }
+
+      const items = children.current[act.id]
+      if (items) {
+        items.forEach((element, i) => {
+          const o = easeOutCubic(clamp((local - (0.07 + i * 0.03)) / 0.16))
+          element.style.opacity = o
+          element.style.transform = `translateY(${(1 - o) * 14}px)`
+        })
+      }
+    }
+  })
+
+  const register = (actId, slot) => (element) => {
+    if (!children.current[actId]) children.current[actId] = []
+    children.current[actId][slot] = element
+  }
+
+  return (
+    <>
+      {projects.map(({ act, index, project }) => (
+        <section
+          key={act.id}
+          ref={(element) => {
+            roots.current[act.id] = element
+          }}
+          className="project"
+          aria-hidden={activeIndex !== index}
+        >
+          <div className="project__scrim" />
+
+          <div className="project__content">
+            <div className="project__index" ref={register(act.id, 0)}>
+              {project.index}
+            </div>
+
+            <h2 className="project__name" ref={register(act.id, 1)}>
+              {project.name}
+            </h2>
+
+            <div className="project__kicker" ref={register(act.id, 2)}>
+              {project.kicker}
+            </div>
+
+            <p className="project__body" ref={register(act.id, 3)}>
+              {project.body}
+            </p>
+
+            <div className="project__metrics" ref={register(act.id, 4)}>
+              <span className="project__metric--accent">{project.language}</span>
+              <span>★ {project.stars}</span>
+              <span>⑂ {project.forks}</span>
+              <span>{SIZE_MB(project.sizeKb)}</span>
+              <span>pushed {project.pushed}</span>
+            </div>
+
+            <a
+              className="project__link"
+              href={`https://github.com/mitige/${project.slug}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              ref={register(act.id, 5)}
+            >
+              github.com/mitige/{project.slug}
+              <span aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </section>
+      ))}
+    </>
+  )
+}

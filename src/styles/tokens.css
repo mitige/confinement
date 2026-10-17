@@ -1,0 +1,88 @@
+/**
+ * Design tokens.
+ *
+ * Strictly monochrome. There is no accent colour in the interface: the only
+ * chroma in the entire piece is emitted by the plasma shader. That restraint is
+ * what keeps the work sober rather than decorative.
+ */
+
+:root {
+  /* Surfaces ------------------------------------------------------------ */
+  --black: #000000;
+  --ink-0: #060606;
+  --ink-1: #0c0c0c;
+  --ink-2: #141414;
+  --ink-3: #1e1e1e;
+  --ink-4: #2a2a2a;
+
+  /*
+   * Foreground.
+   *
+   * The greys are the contrast budget, and they are set from measurement rather
+   * than taste: each step is the loosest value that still clears a 4.5:1 ratio
+   * against black, so the hierarchy can stay restrained without type becoming
+   * decorative. scripts/a11y.mjs checks the rendered pixels, not these values.
+   */
+  --fg-0: #ffffff;
+  --fg-1: rgba(255, 255, 255, 0.78);
+  --fg-2: rgba(255, 255, 255, 0.68);
+  --fg-3: rgba(255, 255, 255, 0.56);
+  /* Rules and separators are exempt from contrast requirements; keep them faint. */
+  --hairline: rgba(255, 255, 255, 0.14);
+  --hairline-strong: rgba(255, 255, 255, 0.28);
+
+  /* Type families ------------------------------------------------------- */
+  --font-sans: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+    'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo,
+    Consolas, monospace;
+
+  /* Type scale ---------------------------------------------------------- */
+  --fs-mega: clamp(3.4rem, 12.5vw, 13rem);
+  --fs-display: clamp(2.6rem, 8.4vw, 8.5rem);
+  --fs-h1: clamp(2rem, 5.4vw, 4.6rem);
+  --fs-h2: clamp(1.5rem, 3vw, 2.5rem);
+  --fs-lead: clamp(1.05rem, 1.5vw, 1.7rem);
+  --fs-body: clamp(0.95rem, 1.05vw, 1.15rem);
+  --fs-small: clamp(0.78rem, 0.85vw, 0.9rem);
+  --fs-mono: clamp(0.66rem, 0.8vw, 0.86rem);
+  --fs-micro: clamp(0.6rem, 0.72vw, 0.78rem);
+
+  /* Tracking ------------------------------------------------------------ */
+  --track-mega: -0.05em;
+  --track-display: -0.042em;
+  --track-tight: -0.025em;
+  --track-normal: -0.01em;
+  --track-mono: 0.15em;
+  --track-micro: 0.24em;
+
+  /* Weight -------------------------------------------------------------- */
+  --w-thin: 200;
+  --w-light: 300;
+  --w-regular: 400;
+
+  /* Rhythm -------------------------------------------------------------- */
+  --gutter: clamp(1.25rem, 4.5vw, 5.5rem);
+  --measure: 34ch;
+  --measure-wide: 52ch;
+  --max-w: 1560px;
+
+  /* Motion -------------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-reveal: 900ms;
+  --dur-fast: 420ms;
+
+  /* Depth --------------------------------------------------------------- */
+  --z-canvas: 1;
+  --z-grain: 40;
+  --z-plates: 20;
+  --z-hud: 50;
+  --z-loader: 100;
+}
+
+/* Numeric columns should not jitter as counts change. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}

@@ -1,0 +1,35 @@
+{
+  "name": "confinement",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "CONFINEMENT — portfolio of Evan (github.com/mitige). A scroll-driven descent into a real-scale ITER tokamak, generated entirely at runtime.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "verify": "node scripts/verify-geometry.mjs",
+    "shots": "node scripts/shoot.mjs",
+    "shots:mobile": "node scripts/shoot.mjs --mobile --width 390 --height 844 --settle 2200",
+    "analyze": "node scripts/analyze.mjs --brief",
+    "probe": "node scripts/probe.mjs",
+    "exposure": "node scripts/exposure.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@react-three/fiber": "^9.8.2",
+    "@react-three/postprocessing": "^3.2.0",
+    "dev": "^0.1.5",
+    "lenis": "^1.3.27",
+    "postprocessing": "^6.39.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright-core": "^1.64.1",
+    "vite": "^8.3.4"
+  }
+}
