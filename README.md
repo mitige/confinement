@@ -2,6 +2,8 @@
 
 Portfolio for **Evan** — [`github.com/mitige`](https://github.com/mitige).
 
+**Live: <https://mitige.github.io/confinement/>**
+
 A scroll-driven descent into a real-scale ITER tokamak, built entirely in code, alternating
 cinematic 3D acts with sober monochrome 2D text plates.
 
@@ -11,6 +13,31 @@ npm run dev        # http://127.0.0.1:5273
 npm run build      # static bundle in dist/
 npm run verify     # assert the machine's geometry and radial build
 ```
+
+## Deployment
+
+Published to GitHub Pages by `.github/workflows/deploy.yml`, on every push to `main`. The
+workflow runs `npm run verify` **before** it builds, so a change that breaks the machine's radial
+build, the camera chain or the layered-transparency budget fails the deploy rather than shipping.
+
+The build sets `base: './'` in `vite.config.js` so the same bundle works at a domain root and at
+the sub-path a project Pages site is served from — with the default absolute base the page loads
+and then 404s every asset.
+
+### A custom subdomain
+
+`confinement.<your-domain>` is supported and takes two steps, one of which is DNS and therefore
+has to happen on a domain you own:
+
+1. In this repository, add a file named `CNAME` at the root containing just the hostname, for
+   example `confinement.example.com`, and push. (Or set it under *Settings → Pages → Custom
+   domain*, which creates the file for you.)
+2. At your DNS provider, add a `CNAME` record for the `confinement` subdomain pointing at
+   `mitige.github.io`.
+
+Then enable *Enforce HTTPS* in the Pages settings; the certificate is issued automatically. Do
+**not** add the `CNAME` file before the DNS record exists — Pages would start redirecting the
+working `github.io` address to a hostname that does not resolve yet.
 
 ## What it is
 
@@ -114,7 +141,9 @@ This model cannot view images, so the review loop is measurement instead of eyeb
   click. This is what catches that.
 - `npm run shots` — screenshots every act at a deterministic scroll position, and fails on any
   console error or page exception. `npm run shots:mobile` and `--reduced` run the same pass at
-  390×844 and with `prefers-reduced-motion: reduce`.
+  390×844 and with `prefers-reduced-motion: reduce`. Point it at the deployed site with
+  `PREVIEW_URL=https://mitige.github.io/confinement/ npm run shots`, which is how the live build
+  is verified rather than assumed.
 - `npm run analyze` — decodes each screenshot and reports mean/min/max luminance, the fraction of
   lit and clipped pixels, detail density, and an ASCII luminance map for judging composition.
 - `npm run exposure` — renders one act under several pipeline variants to localise exposure
