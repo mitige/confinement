@@ -18,7 +18,14 @@ import {
   fluxSurfaceOutline,
   signedVolume,
 } from '../src/three/geometry/sweep.js'
-import { TF_COILS, PLASMA, VESSEL, BLANKET, CENTRAL_SOLENOID } from '../src/data/iter.js'
+import {
+  TF_COILS,
+  PLASMA,
+  VESSEL,
+  BLANKET,
+  CENTRAL_SOLENOID,
+  CRYOSTAT,
+} from '../src/data/iter.js'
 import { TIMELINE, TOTAL_VH, ghostedLayerCount } from '../src/data/acts.js'
 
 let failures = 0
@@ -204,6 +211,107 @@ assert(
   'plasma clears the vessel outboard wall',
   PLASMA.R0 + PLASMA.a <= maxInner,
   `plasma outboard ${(PLASMA.R0 + PLASMA.a).toFixed(2)}, wall inner ${maxInner.toFixed(2)}`,
+)
+
+/* ------------------------------------------------------- cryostat stack */
+
+/*
+ * The cryostat is a stack of coaxial cylinders, and the failure mode here is
+ * specific and hard to spot: if the cap's radius equals the trunk's radius while
+ * their height ranges overlap, the two side walls occupy the same surface, the
+ * depth buffer cannot separate them, and the top of the machine visibly flickers in
+ * and out of its own wall.
+ *
+ * So the property to assert is: no two coaxial cylindrical surfaces may share a
+ * radius while overlapping in height. The rest of the checks are about the cap
+ * overhanging the trunk the way the base ring does.
+ */
+console.log('\nCryostat stack')
+
+const cryostatParts = [
+  {
+    name: 'trunk (outer shell)',
+    radius: CRYOSTAT.radius,
+    lo: 0,
+    hi: CRYOSTAT.shellHeight,
+  },
+  {
+    name: 'trunk (inner shell)',
+    radius: CRYOSTAT.radius - CRYOSTAT.thickness,
+    lo: 0,
+    hi: CRYOSTAT.shellHeight,
+  },
+  {
+    name: 'top flange',
+    radius: CRYOSTAT.capRadius,
+    lo: CRYOSTAT.shellHeight,
+    hi: CRYOSTAT.shellHeight + CRYOSTAT.flangeHeight,
+  },
+  {
+    name: 'lid plate',
+    radius: CRYOSTAT.capRadius - CRYOSTAT.plateInset,
+    lo: CRYOSTAT.shellHeight + CRYOSTAT.flangeHeight,
+    hi: CRYOSTAT.height,
+  },
+  {
+    name: 'base ring',
+    radius: CRYOSTAT.baseRingRadius,
+    lo: 0,
+    hi: CRYOSTAT.baseRingHeight,
+  },
+]
+
+for (const part of cryostatParts) {
+  console.log(
+    `  ${part.name.padEnd(22)} r ${part.radius.toFixed(2).padStart(6)}` +
+      `   y ${part.lo.toFixed(2).padStart(6)} -> ${part.hi.toFixed(2)}`,
+  )
+}
+
+let coincident = 0
+for (let i = 0; i < cryostatParts.length; i += 1) {
+  for (let j = i + 1; j < cryostatParts.length; j += 1) {
+    const a = cryostatParts[i]
+    const b = cryostatParts[j]
+    const sameRadius = Math.abs(a.radius - b.radius) < 1e-6
+    const overlaps = a.lo < b.hi - 1e-9 && b.lo < a.hi - 1e-9
+    if (sameRadius && overlaps) {
+      coincident += 1
+      console.log(
+        `  [FAIL] ${a.name} and ${b.name} share radius ${a.radius} over y ` +
+          `${Math.max(a.lo, b.lo)}-${Math.min(a.hi, b.hi)}: coplanar surfaces`,
+      )
+    }
+  }
+}
+assert('no two coaxial cylinders share a radius while overlapping in height', coincident === 0)
+
+const trunk = cryostatParts[0]
+const flange = cryostatParts[2]
+const base = cryostatParts[4]
+const topOfMachine = Math.max(...cryostatParts.map((part) => part.hi))
+
+check('machine top matches the published height', topOfMachine, CRYOSTAT.height, 0.001)
+check(
+  'top flange overhangs the trunk as far as the base ring does',
+  flange.radius - CRYOSTAT.radius,
+  base.radius - CRYOSTAT.radius,
+  0.001,
+)
+assert(
+  'top flange protrudes beyond the trunk',
+  flange.radius > CRYOSTAT.radius,
+  `${(flange.radius - CRYOSTAT.radius).toFixed(2)} m`,
+)
+assert(
+  'the lid plate is inset behind the flange rim',
+  cryostatParts[3].radius < flange.radius,
+  `${(flange.radius - cryostatParts[3].radius).toFixed(2)} m lip`,
+)
+assert(
+  'the trunk and the cap do not overlap in height',
+  Math.abs(trunk.hi - flange.lo) < 1e-9,
+  `trunk ends at ${trunk.hi}, flange starts at ${flange.lo}`,
 )
 
 /* ---------------------------------------------------- timeline integrity */

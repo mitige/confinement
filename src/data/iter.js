@@ -29,15 +29,33 @@ export const PLASMA = {
 }
 
 export const CRYOSTAT = {
-  /** Outer diameter 28.6 m -> radius 14.3 m. */
+  /** Outer radius of the cylindrical trunk: the published 28.6 m diameter. */
   radius: 14.3,
-  /** Shell thickness (m). */
+  /** Shell wall thickness, visible as a rim where the trunk is cut away. */
   thickness: 0.35,
-  /** Height 29.3 m. */
+  /**
+   * Height of the cylindrical trunk alone. The top cap sits above it, and the two
+   * together make up `height`.
+   */
+  shellHeight: 28.4,
+  /** Total height, trunk plus cap: the published 29.3 m. */
   height: 29.3,
-  /** Flat lid thickness. */
-  lid: 0.9,
-  /** Sits on this ring at floor level. */
+  /**
+   * Radius of the top flange, which is deliberately larger than the trunk so the
+   * cap overhangs it exactly as the base ring does. It used to equal the trunk
+   * radius, which put the cap's side wall and the shell on the same surface — two
+   * coplanar faces, so the depth buffer flickered between them and the top of the
+   * machine appeared to punch in and out of its own wall.
+   */
+  capRadius: 14.9,
+  /** Thickness of the top flange. */
+  flangeHeight: 0.5,
+  /**
+   * How far the lid plate is inset behind the flange rim, so the rim reads as a
+   * lip rather than as a flush surface.
+   */
+  plateInset: 0.35,
+  /** The support plinth. Protrudes by the same 0.6 m as the top flange. */
   baseRingRadius: 14.9,
   baseRingHeight: 1.6,
 }
@@ -171,6 +189,3 @@ export const MACHINE = {
   /** Fusion gain Q. */
   q: 10,
 }
-
-/** Convenience: total machine height, used for framing. */
-export const MACHINE_TOP = CRYOSTAT.height

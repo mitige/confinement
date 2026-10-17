@@ -19,9 +19,31 @@ import { clamp, damp, easeInOutCubic, invLerp } from '../lib/math.js'
  * velocity discontinuities at act boundaries and gives the whole piece its
  * weighted, physical feel.
  */
+/**
+ * A fixed camera override, for inspecting a piece of the machine without hunting
+ * for a scroll position that happens to frame it.
+ *
+ *   ?cam=0,40,34&target=0,28,0&fov=40
+ *
+ * Present only when asked for; absent, the rig behaves exactly as before.
+ */
+function cameraOverride() {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const cam = params.get('cam')
+  const target = params.get('target')
+  if (!cam || !target) return null
+  const parse = (value) => value.split(',').map(Number)
+  const position = parse(cam)
+  const look = parse(target)
+  if (position.some(Number.isNaN) || look.some(Number.isNaN)) return null
+  return { position, target: look, fov: Number(params.get('fov')) || 40 }
+}
+
 export function CameraRig({ reducedMotion = false }) {
   const camera = useThree((s) => s.camera)
   const store = useDirectorStore()
+  const override = cameraOverride()
 
   const state = useRef({
     actId: null,
@@ -43,6 +65,18 @@ export function CameraRig({ reducedMotion = false }) {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
+
+    // Inspection mode: hold the requested framing and ignore the timeline.
+    if (override) {
+      camera.position.set(...override.position)
+      camera.lookAt(...override.target)
+      if (Math.abs(camera.fov - override.fov) > 0.002) {
+        camera.fov = override.fov
+        camera.updateProjectionMatrix()
+      }
+      return
+    }
+
     const act = TIMELINE[store.actIndex]
     const s = state.current
     const keys = act.cam

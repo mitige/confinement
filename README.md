@@ -132,7 +132,12 @@ all seventeen acts costs a handful of React renders.
 
 This model cannot view images, so the review loop is measurement instead of eyeballing:
 
-- `npm run verify` — geometry, radial-build and timeline assertions. Exit code 1 on failure.
+- `npm run verify` — geometry, radial-build, cryostat-stack and timeline assertions. Exit code 1
+  on failure. The cryostat check exists because its failure mode is invisible in code review: if
+  the top cap shares the trunk's radius while their height ranges overlap, the two side walls sit
+  on the same surface and the depth buffer flickers between them — the top of the machine appears
+  to punch in and out of its own wall. The rule asserted is general: no two coaxial cylinders may
+  share a radius while overlapping in height.
 - `npm run probe` — reports which GL backend headless Chrome reaches, and the frame rate.
 - `npm run perf` — frame rate, settled device pixel ratio and GPU resource counts per resolution.
 - `node scripts/click-audit.mjs` — for each act, asks the document what is actually under five
@@ -153,7 +158,16 @@ This model cannot view images, so the review loop is measurement instead of eyeb
   Currently: all 12 type-bearing acts pass, 20:1 for display type and 6.2:1 at the dimmest label.
 
 Debug switches, harmless in production: `?fx=0` skips post-processing, `?exposure=N` scales every
-light, `?rig=name` forces a lighting rig.
+light, `?rig=name` forces a lighting rig, and
+
+```
+?cam=0,37,25&target=0,28.4,0&fov=33
+```
+
+holds a fixed camera, for looking at one piece of the machine instead of hunting for a scroll
+position that happens to frame it. `node scripts/inspect.mjs "<that url>" name` shoots it and
+reports luminance, detail and an ASCII map — which is how the cryostat's top cap was confirmed
+fixed rather than assumed.
 
 ### Measured results
 
