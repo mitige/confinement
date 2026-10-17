@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useDirector, useDirectorStore, useScrollFrame } from '../scroll/ScrollDirector.jsx'
+import { useDirector, useScrollFrame } from '../scroll/ScrollDirector.jsx'
 import { TIMELINE } from '../data/acts.js'
 import { PLATES } from '../data/plates.js'
 import { applyVisibility } from '../lib/dom.js'
@@ -31,7 +31,6 @@ const childRamp = (local, index, { start = 0.09, step = 0.035, duration = 0.16 }
 
 export function Plates() {
   const { activeIndex } = useDirector()
-  const store = useDirectorStore()
   const roots = useRef({})
   const children = useRef({})
 

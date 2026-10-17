@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useDirectorStore, useScrollFrame } from '../scroll/ScrollDirector.jsx'
+import { useScrollFrame } from '../scroll/ScrollDirector.jsx'
 import { TIMELINE } from '../data/acts.js'
 import { CODA } from '../data/plates.js'
 import { applyVisibility } from '../lib/dom.js'
@@ -15,7 +15,6 @@ import { clamp, easeOutCubic } from '../lib/math.js'
  * message and the machine behind it is doing the talking.
  */
 export function Coda() {
-  const store = useDirectorStore()
   const root = useRef(null)
   const display = useRef(null)
 

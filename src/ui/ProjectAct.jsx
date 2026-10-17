@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useDirector, useDirectorStore, useScrollFrame } from '../scroll/ScrollDirector.jsx'
+import { useDirector, useScrollFrame } from '../scroll/ScrollDirector.jsx'
 import { TIMELINE } from '../data/acts.js'
 import { PROJECT_BY_SLUG } from '../data/projects.js'
 import { applyVisibility } from '../lib/dom.js'
@@ -26,7 +26,6 @@ import { clamp, easeOutCubic, window01 } from '../lib/math.js'
 
 export function ProjectAct() {
   const { activeIndex } = useDirector()
-  const store = useDirectorStore()
   const roots = useRef({})
   const children = useRef({})
 

@@ -41,6 +41,12 @@ jobs:
       - name: Install
         run: npm ci
 
+      # Both guards run before the build. The lint step exists because a const read
+      # before its declaration is valid syntax that bundlers accept, and it took the
+      # whole canvas down on the live site once.
+      - name: Lint
+        run: npm run lint
+
       - name: Verify the machine (geometry, radial build, camera chain, layer budget)
         run: npm run verify
 

@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import * as THREE from 'three'
 import { PF_COILS, MIDPLANE } from '../../data/iter.js'
 import { useFade } from '../useFade.js'
 import { circleCenterline, roundedRectProfile, sweepClosed } from '../geometry/sweep.js'

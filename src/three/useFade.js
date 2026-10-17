@@ -28,11 +28,11 @@ export function useFade(names, key, opts = {}) {
     progress.current = names.map(() => 0)
   }
 
-  const resolved = useMemo(
-    () => names.map((n) => material(n)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [keyOfNames],
-  )
+  /*
+   * Keyed on the joined names rather than on the array, which is a fresh identity
+   * on every render. `names` is a literal at each call site and cannot change.
+   */
+  const resolved = useMemo(() => names.map((n) => material(n)), [keyOfNames])
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)

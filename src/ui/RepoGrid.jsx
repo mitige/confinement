@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useDirectorStore, useScrollFrame } from '../scroll/ScrollDirector.jsx'
+import { useScrollFrame } from '../scroll/ScrollDirector.jsx'
 import { TIMELINE } from '../data/acts.js'
 import { REPOS, TOTALS, FLAGSHIP_SLUGS } from '../data/repos.js'
 import { applyVisibility } from '../lib/dom.js'
@@ -28,7 +28,6 @@ const ORDERED = [...REPOS].sort((a, b) => {
 })
 
 export function RepoGrid() {
-  const store = useDirectorStore()
   const root = useRef(null)
   const children = useRef([])
 

@@ -162,7 +162,6 @@ check('wall thickness on the inboard side (m)', inboardInner - inboardOuter, VES
 console.log('\nRadial build at the mid-plane (metres)')
 
 const cs = CENTRAL_SOLENOID.outerRadius
-const tfInner = TF_COILS.innerRadius - TF_COILS.packRadial / 2
 const tfOuter = TF_COILS.arcCentre + TF_COILS.semiR + TF_COILS.packRadial / 2
 const tfLegInner = TF_COILS.innerRadius - TF_COILS.packRadial / 2
 const tfLegOuter = TF_COILS.innerRadius + TF_COILS.packRadial / 2

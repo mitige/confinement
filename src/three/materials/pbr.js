@@ -1,10 +1,5 @@
 import * as THREE from 'three'
-import {
-  brushedRoughness,
-  softNoise,
-  weldSeams,
-  machinedSurface,
-} from './textures.js'
+import { brushedRoughness, weldSeams, machinedSurface } from './textures.js'
 
 /**
  * The material library.
