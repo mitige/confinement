@@ -167,14 +167,32 @@ and no act exceeds the three-ghosted-layer budget.
 
 ## Performance
 
-The frame rate adapts. Resolution is spent first, because the cost of this scene is dominated by
+### Default: maximum quality
+
+The deployed site runs at **full resolution and the top feature tier by default** —
+native device pixel ratio up to 2, bloom, vignette, MSAA. Nothing changes resolution while you
+scroll. This is a deliberate trade against smoothness: a portfolio that looks soft by default is a
+worse failure than one that occasionally drops a frame.
+
+If it does not hold up on a given machine, the adaptation is one query parameter away:
+
+| | |
+|---|---|
+| `?adaptive=1` | let the render resolution fall, targeting 50–58 fps |
+| `?quality=medium` | cap the feature tier: no MSAA, cheaper bloom |
+| `?res=0.7` | pin an exact render scale |
+
+### The adaptive path
+
+When switched on, the frame rate adapts. Resolution is spent first, because the cost of this scene is dominated by
 fragment work — full-screen ghosted layers plus the additive plasma shader — and because losing
 sharpness is far less noticeable than losing the glow. Only when resolution has bottomed out does
 the governor shed bloom, vignette and MSAA. Because the lever is the canvas, the typography is
 never softened: it is DOM, and stays sharp at any render scale.
 
 Measured on **AMD Radeon 610M** — a 2-compute-unit, 15 W integrated GPU, roughly a tenth of an
-M-series Mac — in the heaviest act at 1440×900:
+M-series Mac — in the heaviest act at 1440×900. This is a weak enough GPU that the adaptive path
+is worth having there; anything with a real graphics chip will sit at maximum:
 
 | | fps | render resolution |
 |---|---|---|
