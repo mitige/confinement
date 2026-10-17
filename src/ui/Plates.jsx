@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { useDirector, useDirectorStore, useScrollFrame } from '../scroll/ScrollDirector.jsx'
 import { TIMELINE } from '../data/acts.js'
 import { PLATES } from '../data/plates.js'
+import { applyVisibility } from '../lib/dom.js'
 import { clamp, easeOutCubic, window01 } from '../lib/math.js'
 
 /**
@@ -12,8 +13,12 @@ import { clamp, easeOutCubic, window01 } from '../lib/math.js'
  * animated by writing to the DOM from the scroll loop rather than through React
  * state, so a plate costs nothing per frame.
  *
- * Reveals are staggered inside each plate, and elements never fade themselves out
- * — the plate's own master fade handles the exit, which avoids the compounding
+ * Nothing sits above the copy. There was a roman numeral and a hairline rule
+ * there; both were decoration standing in front of the words, and removing them
+ * leaves the plate with only what it has to say.
+ *
+ * Reveals are staggered inside each plate, and elements never fade themselves out —
+ * the plate's own master fade handles the exit, which avoids the compounding
  * opacity dip that double-fading produces.
  */
 
@@ -46,13 +51,14 @@ export function Plates() {
       const root = roots.current[act.id]
       if (root) {
         const o = inWindow(local)
-        root.style.opacity = o
+        applyVisibility(root, o)
         root.style.transform = `translateY(${(1 - o) * 18}px)`
       }
 
       const items = children.current[act.id]
       if (items) {
         items.forEach((element, i) => {
+          if (!element) return
           const o = childRamp(local, i)
           element.style.opacity = o
           element.style.transform = `translateY(${(1 - o) * 14}px)`
@@ -61,9 +67,9 @@ export function Plates() {
     }
   })
 
-  const registerChild = (actId, i) => (element) => {
+  const register = (actId, slot) => (element) => {
     if (!children.current[actId]) children.current[actId] = []
-    children.current[actId][i] = element
+    children.current[actId][slot] = element
   }
 
   return (
@@ -71,6 +77,9 @@ export function Plates() {
       {plates.map(({ act }) => {
         const plate = PLATES[act.id]
         const isCentre = plate.layout === 'centre'
+        // Slots are allocated in render order so the stagger follows the eye.
+        let slot = 0
+
         return (
           <section
             key={act.id}
@@ -80,25 +89,16 @@ export function Plates() {
             className={`plate plate--${isCentre ? 'centre' : 'left'}`}
             aria-hidden={activeIndex !== TIMELINE.indexOf(act)}
           >
-            <div className="plate__numeral" ref={registerChild(act.id, 0)}>
-              <span>{plate.numeral}</span>
-              <span>{plate.overline}</span>
-            </div>
-
             {plate.display && (
-              <h2 className="plate__display" ref={registerChild(act.id, 1)}>
+              <h2 className="plate__display" ref={register(act.id, slot++)}>
                 {plate.display}
               </h2>
             )}
 
             {plate.stats && (
               <div className="stats">
-                {plate.stats.map((stat, i) => (
-                  <div
-                    className="stat"
-                    key={stat.label}
-                    ref={registerChild(act.id, 1 + i)}
-                  >
+                {plate.stats.map((stat) => (
+                  <div className="stat" key={stat.label} ref={register(act.id, slot++)}>
                     <div className="stat__value">
                       {stat.value}
                       {stat.unit && <span className="stat__unit">{stat.unit}</span>}
@@ -109,10 +109,7 @@ export function Plates() {
               </div>
             )}
 
-            <p
-              className="plate__lead"
-              ref={registerChild(act.id, plate.stats ? 1 + plate.stats.length : 2)}
-            >
+            <p className="plate__lead" ref={register(act.id, slot++)}>
               {plate.lead}
             </p>
           </section>

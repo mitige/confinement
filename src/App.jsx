@@ -10,7 +10,8 @@ import { RepoGrid } from './ui/RepoGrid.jsx'
 import { Coda } from './ui/Coda.jsx'
 import { Hud } from './ui/Hud.jsx'
 import { Loader } from './ui/Loader.jsx'
-import { detectQuality, dprFor, nextTier, GOVERNOR } from './lib/quality.js'
+import { detectQuality, dprFor, MIN_DPR } from './lib/quality.js'
+import { PerformanceGovernor } from './three/PerformanceGovernor.jsx'
 
 /**
  * Signals that the renderer is actually producing frames.
@@ -52,46 +53,19 @@ function debugParams() {
     effects: params.get('fx') !== '0',
     exposure: Number(params.get('exposure')) || 1,
     forcedRig: params.get('rig') || null,
+    /** ?res=1 pins the render scale, which is how the governor is A/B tested. */
+    forcedScale: params.has('res') ? Number(params.get('res')) : null,
   }
-}
-
-/**
- * Measures real frame time and steps the quality tier down if the static guess was
- * optimistic. Downgrades only, with a warm-up window that discards the frames
- * spent compiling shaders.
- */
-function PerformanceGovernor({ tier, onDowngrade }) {
-  const samples = useRef([])
-  const frames = useRef(0)
-  const settled = useRef(false)
-
-  useFrame((_, delta) => {
-    if (settled.current) return
-    frames.current += 1
-    if (frames.current <= GOVERNOR.warmup) return
-
-    samples.current.push(delta)
-    if (samples.current.length < GOVERNOR.sample) return
-
-    settled.current = true
-    const total = samples.current.reduce((sum, value) => sum + value, 0)
-    const fps = samples.current.length / total
-    const downgrade = nextTier(tier, fps)
-    if (downgrade) onDowngrade(downgrade, fps)
-  })
-
-  // A tier change starts a fresh measurement, so the governor can step twice.
-  useEffect(() => {
-    samples.current = []
-    frames.current = 0
-    settled.current = false
-  }, [tier])
-
-  return null
 }
 
 function Experience() {
   const [quality, setQuality] = useState(detectQuality)
+  /*
+   * Render scale, owned here because it is applied as the Canvas `dpr` prop — the
+   * only channel R3F will not overwrite. It changes a handful of times per
+   * session, in steps of 0.1, so re-rendering on change is free.
+   */
+  const [renderScale, setRenderScale] = useState(1)
   const [debug] = useState(debugParams)
   const [sceneReady, setSceneReady] = useState(false)
   const { activeIndex, timeline, reduced } = useDirector()
@@ -122,7 +96,7 @@ function Experience() {
       >
         <Canvas
           flat
-          dpr={dprFor(quality)}
+          dpr={debug.forcedScale ?? Math.max(MIN_DPR, dprFor(quality) * renderScale)}
           camera={{ position: [0, 21, 92], fov: 30, near: 0.1, far: 900 }}
           gl={{
             antialias: false,
@@ -140,13 +114,17 @@ function Experience() {
           <FrameGate onReady={handleReady} />
           <PerformanceGovernor
             tier={quality}
-            onDowngrade={(tier, fps) => {
-              setQuality(tier)
-              if (import.meta.env.DEV) {
-                console.info(
-                  `[quality] ${fps.toFixed(1)} fps measured, stepping down to "${tier}"`,
-                )
-              }
+            onScaleChange={setRenderScale}
+            onDowngrade={() => {
+              // Resolution is already at its floor; the only thing left to give
+              // up is a feature tier.
+              setQuality((current) => {
+                const next = current === 'high' ? 'medium' : current === 'medium' ? 'low' : 'low'
+                if (import.meta.env.DEV && next !== current) {
+                  console.info(`[quality] resolution floor reached, stepping down to "${next}"`)
+                }
+                return next
+              })
             }}
           />
         </Canvas>
@@ -187,7 +165,7 @@ function Experience() {
       <div className="vignette" aria-hidden="true" />
       <div className="grain" aria-hidden="true" />
 
-      <Loader sceneReady={sceneReady} quality={quality} />
+      <Loader sceneReady={sceneReady} />
     </>
   )
 }

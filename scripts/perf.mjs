@@ -2,13 +2,17 @@
  * Performance check.
  *
  * Measures the app's own animation loop at the resolutions that matter, including
- * a simulated retina display (devicePixelRatio 2), because the quality tier clamps
- * DPR to 2 on capable machines and that quadruples the fragment work.
+ * a simulated retina display, because the quality tier clamps DPR to 2 on capable
+ * machines and that quadruples the fragment work.
  *
- * Also reports live GPU resource counts — geometries, textures and compiled
- * programs — which is where a scene like this usually goes wrong: a geometry
- * allocated inside a render body, or a texture rebuilt every frame, shows up here
- * as a count that grows.
+ * Reports two things per case: the frame rate once the dynamic-resolution
+ * governor has settled, and the device pixel ratio it settled on. The second
+ * number is the interesting one — it says how much resolution the machine was
+ * willing to give up to reach a smooth frame rate.
+ *
+ * Also reports live GPU resource counts, which is where a scene like this usually
+ * goes wrong: a geometry allocated inside a render body, or a texture rebuilt
+ * every frame, shows up here as a count that grows.
  *
  * Usage: node scripts/perf.mjs
  */
@@ -17,12 +21,17 @@ import { chromium } from 'playwright-core'
 
 const BASE = 'http://127.0.0.1:5273/'
 
+/** The heaviest act: the plasma at full intensity inside ghosted steel. */
+const HEAVY_ACT = 'ignition'
+const HEAVY_AT = 0.68
+
 const CASES = [
-  { label: '1440x900  dpr 1  (high)', width: 1440, height: 900, dpr: 1 },
-  { label: '1440x900  dpr 2  (high, retina)', width: 1440, height: 900, dpr: 2 },
-  { label: '1920x1080 dpr 1  (high)', width: 1920, height: 1080, dpr: 1 },
-  { label: ' 390x844  dpr 3  (mobile)', width: 390, height: 844, dpr: 3, mobile: true },
-  { label: '1440x900  dpr 1  reduced-motion', width: 1440, height: 900, dpr: 1, reduced: true },
+  { label: '1440x900  governor OFF', width: 1440, height: 900, dpr: 1, query: '?res=1' },
+  { label: '1440x900  governor ON', width: 1440, height: 900, dpr: 1 },
+  { label: '1440x900  dpr 2  governor ON', width: 1440, height: 900, dpr: 2 },
+  { label: '1920x1080 governor ON', width: 1920, height: 1080, dpr: 1 },
+  { label: ' 390x844  dpr 3  governor ON', width: 390, height: 844, dpr: 3, mobile: true },
+  { label: '1440x900  reduced-motion', width: 1440, height: 900, dpr: 1, reduced: true },
 ]
 
 const BASE_ARGS = [
@@ -35,14 +44,34 @@ const BASE_ARGS = [
   '--force-color-profile=srgb',
 ]
 
+/** Average the app's rAF loop over `ms`. */
+const measure = (page, ms) =>
+  page.evaluate(
+    (duration) =>
+      new Promise((resolve) => {
+        let frames = 0
+        const start = performance.now()
+        const tick = () => {
+          frames += 1
+          const elapsed = performance.now() - start
+          if (elapsed > duration) resolve((frames / elapsed) * 1000)
+          else requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      }),
+    ms,
+  )
+
 async function main() {
   const browser = await chromium.launch({
     executablePath: '/usr/bin/google-chrome-stable',
     args: BASE_ARGS,
   })
 
-  console.log('\n  case                                  fps    geometries  textures  programs')
-  console.log('  ' + '-'.repeat(74))
+  console.log(
+    '\n  case                              fps   final dpr   resolution   geometries textures',
+  )
+  console.log('  ' + '-'.repeat(86))
 
   for (const testCase of CASES) {
     const context = await browser.newContext({
@@ -56,85 +85,49 @@ async function main() {
       hasTouch: Boolean(testCase.mobile),
     })
     const page = await context.newPage()
-    page.setDefaultTimeout(120_000)
+    page.setDefaultTimeout(180_000)
 
     try {
-      await page.goto(BASE, { waitUntil: 'load', timeout: 60_000 })
-      await page.waitForSelector('.loader', { state: 'detached', timeout: 90_000 })
+      await page.goto(BASE + (testCase.query ?? ''), { waitUntil: 'load', timeout: 60_000 })
+      await page.waitForSelector('.loader', { state: 'detached', timeout: 120_000 })
 
-      // Measure during the heaviest act, not the opening frame.
-      await page.evaluate(() => {
-        const el = document.querySelector('[data-act="ignition"]')
-        if (el) {
-          const y = el.offsetTop + el.offsetHeight * 0.68
-          window.__confinement?.lenis.scrollTo(y, { immediate: true })
-        }
-      })
-      await page.waitForTimeout(2600)
-
-      const result = await page.evaluate(
-        () =>
-          new Promise((resolve) => {
-            let frames = 0
-            const start = performance.now()
-            const tick = () => {
-              frames += 1
-              const elapsed = performance.now() - start
-              if (elapsed > 4000) resolve((frames / elapsed) * 1000)
-              else requestAnimationFrame(tick)
-            }
-            requestAnimationFrame(tick)
-          }),
+      await page.evaluate(
+        ({ act, at }) => {
+          const el = document.querySelector(`[data-act="${act}"]`)
+          if (el) window.__confinement?.lenis.scrollTo(el.offsetTop + el.offsetHeight * at, { immediate: true })
+        },
+        { act: HEAVY_ACT, at: HEAVY_AT },
       )
 
-      // three.js keeps its own per-frame counters on the renderer.
+      /*
+       * Let the governor converge before measuring: it steps in 0.5s windows and
+       * climbs slowly, so it needs several seconds to settle from a cold start.
+       */
+      await page.waitForTimeout(10_000)
+
+      const fps = await measure(page, 5000)
       const info = await page.evaluate(() => {
         const renderer = window.__r3f?.gl
         if (!renderer) return null
+        const dpr = renderer.getPixelRatio()
         return {
+          dpr,
+          width: Math.round(window.innerWidth * dpr),
+          height: Math.round(window.innerHeight * dpr),
           geometries: renderer.info.memory.geometries,
           textures: renderer.info.memory.textures,
-          programs: renderer.info.programs?.length ?? 0,
         }
       })
 
       console.log(
-        `  ${testCase.label.padEnd(38)}${result.toFixed(1).padStart(5)}` +
-          `    ${String(info?.geometries ?? '-').padStart(10)}` +
-          `  ${String(info?.textures ?? '-').padStart(8)}` +
-          `  ${String(info?.programs ?? '-').padStart(8)}`,
+        `  ${testCase.label.padEnd(34)}${fps.toFixed(1).padStart(5)}` +
+          `   ${(info?.dpr ?? 0).toFixed(2).padStart(9)}` +
+          `   ${`${info?.width}x${info?.height}`.padStart(11)}` +
+          `   ${String(info?.geometries ?? '-').padStart(10)}` +
+          `   ${String(info?.textures ?? '-').padStart(8)}`,
       )
-
-      /*
-       * Verify the adaptive path actually engages, rather than assuming it does.
-       * Give the governor time to finish sampling, then check whether the device
-       * pixel ratio moved — that is the observable effect of a tier change.
-       */
-      const before = await page.evaluate(() => window.__r3f?.gl?.getPixelRatio() ?? null)
-      await page.waitForTimeout(9000)
-      const after = await page.evaluate(() => window.__r3f?.gl?.getPixelRatio() ?? null)
-      if (before !== null && after !== null && after !== before) {
-        const adapted = await page.evaluate(
-          () =>
-            new Promise((resolve) => {
-              let frames = 0
-              const start = performance.now()
-              const tick = () => {
-                frames += 1
-                const elapsed = performance.now() - start
-                if (elapsed > 3000) resolve((frames / elapsed) * 1000)
-                else requestAnimationFrame(tick)
-              }
-              requestAnimationFrame(tick)
-            }),
-        )
-        console.log(
-          `  ${'  └ governor stepped down'.padEnd(38)}` +
-            ` dpr ${before.toFixed(2)} -> ${after.toFixed(2)}, ${adapted.toFixed(1)} fps`,
-        )
-      }
     } catch (error) {
-      console.log(`  ${testCase.label.padEnd(38)}  failed: ${error.message.split('\n')[0]}`)
+      console.log(`  ${testCase.label.padEnd(34)}  failed: ${error.message.split('\n')[0]}`)
     }
 
     await context.close()

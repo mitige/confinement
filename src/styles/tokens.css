@@ -53,8 +53,13 @@
   --track-display: -0.042em;
   --track-tight: -0.025em;
   --track-normal: -0.01em;
-  --track-mono: 0.15em;
-  --track-micro: 0.24em;
+  /*
+   * Tracking is tight because the utility labels are lowercase now. Wide letter
+   * spacing exists to open up uppercase, where the letterforms are already
+   * uniform; applied to lowercase it just pulls words apart.
+   */
+  --track-mono: 0.035em;
+  --track-micro: 0.07em;
 
   /* Weight -------------------------------------------------------------- */
   --w-thin: 200;

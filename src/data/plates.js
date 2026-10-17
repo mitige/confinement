@@ -4,20 +4,19 @@
  * Kept out of the components so the writing can be edited without touching
  * layout. The register is deliberately flat: state the number, then stop. The
  * typography carries the emphasis, not adjectives.
+ *
+ * Nothing is rendered above a plate's copy — no numeral, no overline, no rule.
+ * Each of those was decoration in front of the words.
  */
 
 export const PLATES = {
   'plate-01': {
-    numeral: 'I',
-    overline: 'ITER · Tokamak',
     display: 'Confinement.',
     lead: 'Nothing in this machine is allowed to touch anything else.',
     layout: 'centre',
   },
 
   'plate-02': {
-    numeral: 'II',
-    overline: 'Real scale',
     stats: [
       { value: '28.6', unit: 'm', label: 'Cryostat diameter' },
       { value: '29.3', unit: 'm', label: 'Total height' },
@@ -29,8 +28,6 @@ export const PLATES = {
   },
 
   'plate-03': {
-    numeral: 'III',
-    overline: 'Plasma',
     stats: [
       { value: '150', unit: 'M °C', label: 'Ion temperature' },
       { value: '11.8', unit: 'T', label: 'Magnetic field' },
@@ -42,8 +39,6 @@ export const PLATES = {
   },
 
   'plate-04': {
-    numeral: 'IV',
-    overline: 'The work',
     display: 'Nothing here is theoretical.',
     lead: 'Six projects. All of them run.',
     layout: 'centre',
@@ -56,11 +51,8 @@ export const HERO = {
   location: 'France',
 }
 
+/** The coda is the address and nothing else. */
 export const CODA = {
   display: 'github.com/mitige',
   href: 'https://github.com/mitige',
-  lines: [
-    'evan · France · fifteen public repositories',
-    'Geometry generated at runtime. One world unit is one metre.',
-  ],
 }

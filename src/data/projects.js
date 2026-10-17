@@ -4,6 +4,10 @@
  * Every metric here was verified against the GitHub API on 2026-10-16 and must
  * stay in sync with data/repos.js. Copy is deliberately sober: it states what
  * the software does and stops.
+ *
+ * Only name, body, language, stars and forks reach the screen. The index numeral
+ * and the category label that used to be rendered alongside them were removed —
+ * the project's technical diagram is drawn in 3D and already identifies it.
  */
 
 export const PROJECTS = [
@@ -11,14 +15,13 @@ export const PROJECTS = [
     slug: 'humanity',
     index: '01',
     name: 'humanity',
-    kicker: 'Cognitive architecture',
     language: 'Python',
     stars: 9,
     forks: 1,
     sizeKb: 12047,
     pushed: '2026-08-13',
     /** Two or three lines at most. The typography carries the rest. */
-    body: 'Global workspace, attention schema, higher-order thought, active inference and integrated information — run as code, not described as prose. No language model anywhere in the loop. It models, it measures, and it never claims to be conscious.',
+    body: 'Global workspace, attention schema, higher-order thought, active inference and integrated information, run as code, not described as prose. No language model anywhere in the loop. It models, it measures, and it never claims to be conscious.',
     /** Rendered as a thin technical diagram over the machine. */
     schema: 'network',
     topics: ['active-inference', 'agent-based-model', 'cognitive-architecture', 'consciousness'],
@@ -27,7 +30,6 @@ export const PROJECTS = [
     slug: 'judas',
     index: '02',
     name: 'judas',
-    kicker: 'Adversarial self-play',
     language: 'Python',
     stars: 2,
     forks: 0,
@@ -41,13 +43,12 @@ export const PROJECTS = [
     slug: 'all-seeing-eye',
     index: '03',
     name: 'all-seeing-eye',
-    kicker: 'Verification toolchain',
     language: 'Rust',
     stars: 2,
     forks: 0,
     sizeKb: 406,
     pushed: '2026-10-07',
-    body: 'A 1:1 reconstruction of the Epitech moulinette for the Bachelor programme and its new C pool. Prelim, build, epiclang and banana norm, symbol checks, unit and functional tests, verdict — sixteen batteries, one live terminal UI.',
+    body: 'A 1:1 reconstruction of the Epitech moulinette for the Bachelor programme and its new C pool. Prelim, build, epiclang and banana norm, symbol checks, unit and functional tests, verdict, sixteen batteries, one live terminal UI.',
     schema: 'grid',
     topics: ['epitech', 'moulinette', 'tui', 'rust'],
   },
@@ -55,7 +56,6 @@ export const PROJECTS = [
     slug: 'c-man',
     index: '04',
     name: 'c-man',
-    kicker: 'Terminal curriculum',
     language: 'Rust',
     stars: 1,
     forks: 0,
@@ -69,7 +69,6 @@ export const PROJECTS = [
     slug: 'prometheus',
     index: '05',
     name: 'prometheus',
-    kicker: 'Continuous control',
     language: 'C++',
     stars: 0,
     forks: 1,
@@ -83,7 +82,6 @@ export const PROJECTS = [
     slug: 'nana',
     index: '06',
     name: 'nana',
-    kicker: 'Agent harness',
     language: 'Rust',
     stars: 0,
     forks: 0,

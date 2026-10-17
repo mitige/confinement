@@ -30,7 +30,7 @@ const RIGS = {
    */
   void: {
     ambient: 0.034,
-    key: 1.9,
+    key: 2.15,
     keyPos: [-44, 34, 30],
     fill: 0.26,
     fillPos: [38, 15, 24],
@@ -41,7 +41,7 @@ const RIGS = {
   /** Hard off-axis key: maximum form on the cryostat. */
   coldKey: {
     ambient: 0.038,
-    key: 2.6,
+    key: 2.9,
     keyPos: [-36, 32, 24],
     fill: 0.36,
     fillPos: [30, 16, 26],

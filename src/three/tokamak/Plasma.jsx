@@ -6,30 +6,42 @@ import { useDirectorStore } from '../../scroll/ScrollDirector.jsx'
 import { TIMELINE } from '../../data/acts.js'
 import { damp } from '../../lib/math.js'
 import { fluxSurfaceOutline } from '../geometry/sweep.js'
+import { tileableNoise } from '../materials/textures.js'
 
 /**
  * The plasma.
  *
- * The only coloured thing in the entire piece. Three nested flux surfaces — the
- * separatrix at a = 2.0 m and two inner shells — each shaded with animated
- * turbulence and a Fresnel term so the surface reads as a volume of glowing gas
- * rather than a solid. Additive blending with depth writing disabled lets the
- * shells accumulate into a white-hot core.
+ * The only coloured thing in the entire piece. Two nested flux surfaces — the
+ * separatrix at a = 2.0 m and a hotter core — each shaded with animated turbulence
+ * and a Fresnel term so the surface reads as a volume of glowing gas rather than a
+ * solid. Additive blending with depth writing disabled lets the shells accumulate
+ * into a white-hot core.
  *
- * The colour grading is physical rather than decorative: hydrogen plasma radiates
- * a cold violet-white, brightest where the density is highest.
+ * The colour grading is physical rather than decorative: hydrogen plasma radiates a
+ * cold violet-white, brightest where the density is highest.
+ *
+ * Three decisions here are about frame time, because this shader runs on
+ * overlapping additive shells and is the most expensive fragment work in the piece:
+ *
+ *  - **Turbulence comes from a texture, not from the shader.** Two lookups in a
+ *    seamless tileable noise replace roughly eighty arithmetic operations. The
+ *    frequencies are integers so the lookup wraps at the closed seam of the lathe.
+ *  - **Two shells, not three.** The middle shell was nested between the other two,
+ *    so it contributed a fraction of the emission while costing a third of the fill.
+ *  - **Front faces only.** Rendering both faces doubles the fill, and the far side
+ *    of each nested shell is behind its own near side anyway.
  *
  * Intensity is driven by the act timeline, so the machine visibly ignites during
  * the ignition act and cools again afterwards.
  */
 
 const vertexShader = /* glsl */ `
-  varying vec3 vPosition;
+  varying vec2 vUv;
   varying vec3 vNormalView;
   varying vec3 vViewDirection;
 
   void main() {
-    vPosition = position;
+    vUv = uv;
 
     vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
     vNormalView = normalize(normalMatrix * normal);
@@ -43,58 +55,27 @@ const fragmentShader = /* glsl */ `
   uniform float uTime;
   uniform float uIntensity;
   uniform float uGain;
+  uniform sampler2D uNoise;
   uniform vec3 uCore;
   uniform vec3 uMid;
   uniform vec3 uEdge;
 
-  varying vec3 vPosition;
+  varying vec2 vUv;
   varying vec3 vNormalView;
   varying vec3 vViewDirection;
 
-  float hash(vec3 p) {
-    p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
-    p *= 17.0;
-    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-  }
-
-  float valueNoise(vec3 x) {
-    vec3 i = floor(x);
-    vec3 f = fract(x);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(mix(hash(i + vec3(0.0, 0.0, 0.0)), hash(i + vec3(1.0, 0.0, 0.0)), f.x),
-          mix(hash(i + vec3(0.0, 1.0, 0.0)), hash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
-      mix(mix(hash(i + vec3(0.0, 0.0, 1.0)), hash(i + vec3(1.0, 0.0, 1.0)), f.x),
-          mix(hash(i + vec3(0.0, 1.0, 1.0)), hash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y),
-      f.z);
-  }
-
-  /*
-   * Three octaves, not five. This shader is evaluated several times per pixel on
-   * additive, overlapping shells, so octave count is the single biggest lever on
-   * frame time in the whole piece — and the 4th and 5th octaves were finer than
-   * the bloom radius and never survived to the screen.
-   */
-  float fbm(vec3 p) {
-    float amplitude = 0.5;
-    float sum = 0.0;
-    for (int i = 0; i < 3; i++) {
-      sum += amplitude * valueNoise(p);
-      p *= 2.02;
-      amplitude *= 0.5;
-    }
-    return sum;
-  }
-
   void main() {
-    // Anisotropic sampling: filaments stretched along the toroidal axis, which is
-    // the direction current actually flows in the plasma.
-    vec3 p = vec3(vPosition.x * 0.34, vPosition.y * 0.62, vPosition.z * 0.34);
-    float t = uTime * 0.055;
+    /*
+     * Anisotropic sampling: the noise is stretched along u, which runs the long way
+     * round the torus, so the filaments line up with the direction current actually
+     * flows. Both frequencies are integers, which is what makes the lookup
+     * seamless where the lathe closes.
+     */
+    float t = uTime * 0.012;
 
-    float filaments = fbm(p + vec3(0.0, t, 0.0));
-    float fine = fbm(p * 2.7 - vec3(t * 0.8, 0.0, t * 0.5));
-    float turbulence = filaments * 0.68 + fine * 0.32;
+    float coarse = texture2D(uNoise, vec2(vUv.x * 3.0 + t, vUv.y * 2.0)).r;
+    float fine = texture2D(uNoise, vec2(vUv.x * 7.0 - t * 1.7, vUv.y * 5.0 + t * 0.6)).r;
+    float turbulence = coarse * 0.66 + fine * 0.34;
 
     float limb = pow(1.0 - abs(dot(normalize(vNormalView), normalize(vViewDirection))), 2.0);
     float density = 0.28 + 0.72 * turbulence;
@@ -104,10 +85,10 @@ const fragmentShader = /* glsl */ `
     colour = mix(colour, uCore, smoothstep(0.48, 1.0, turbulence) * 0.9);
 
     /*
-     * Emission, not opacity. Only front faces are drawn: rendering both faces
-     * doubles the fill cost on the most expensive shader here, and the far side of
-     * each nested shell is hidden behind its own near side anyway. The gains below
-     * are scaled up to match the single-sided contribution.
+     * Emission, not opacity. The gains are the exposure control for the whole
+     * plasma and were set against measured frame luminance
+     * scripts/exposure.mjs rather than by eye, because additive HDR emission is
+     * extremely easy to clip.
      */
     float emission = density * (0.5 + 0.7 * limb) * uGain * uIntensity;
 
@@ -115,22 +96,20 @@ const fragmentShader = /* glsl */ `
   }
 `
 
-/**
- * Nested flux surfaces: the separatrix and two progressively hotter cores.
- *
- * The gains are the exposure control for the whole plasma. They were set against
- * measured frame luminance (`scripts/exposure.mjs`) rather than by eye, because
- * additive HDR emission is extremely easy to clip.
- */
+/** Nested flux surfaces: the separatrix and one hotter core. */
 const SHELLS = [
-  { a: PLASMA.a, gain: 0.08 },
-  { a: PLASMA.a * 0.8, gain: 0.135 },
-  { a: PLASMA.a * 0.52, gain: 0.26 },
+  { a: PLASMA.a, gain: 0.11 },
+  { a: PLASMA.a * 0.62, gain: 0.33 },
 ]
 
 export function Plasma() {
   const store = useDirectorStore()
   const intensity = useRef(0)
+
+  // One texture, shared by every shell: allocating it per shell would upload the
+  // same data twice.
+  const noise = useMemo(() => tileableNoise({ size: 256, octaves: 4, base: 8 }), [])
+
   const materials = useMemo(
     () =>
       SHELLS.map(
@@ -142,6 +121,7 @@ export function Plasma() {
               uTime: { value: 0 },
               uIntensity: { value: 0 },
               uGain: { value: shell.gain },
+              uNoise: { value: noise },
               uCore: { value: new THREE.Color('#ffffff') },
               uMid: { value: new THREE.Color('#9fdcff') },
               uEdge: { value: new THREE.Color('#6f56d8') },
@@ -153,7 +133,7 @@ export function Plasma() {
             toneMapped: false,
           }),
       ),
-    [],
+    [noise],
   )
 
   const geometry = useMemo(
@@ -166,10 +146,10 @@ export function Plasma() {
               a: shell.a,
               kappa: PLASMA.kappa,
               delta: PLASMA.delta,
-              samples: 112,
+              samples: 88,
               close: true,
             }),
-            96,
+            72,
           ),
       ),
     [],
@@ -182,7 +162,12 @@ export function Plasma() {
 
     // Damped, and biased so the plasma lingers a beat before dying after the
     // ignition act, which reads as cooling rather than as a switch being thrown.
-    intensity.current = damp(intensity.current, target, target > intensity.current ? 2.6 : 1.1, dt)
+    intensity.current = damp(
+      intensity.current,
+      target,
+      target > intensity.current ? 2.6 : 1.1,
+      dt,
+    )
 
     const value = intensity.current
     for (let i = 0; i < materials.length; i += 1) {

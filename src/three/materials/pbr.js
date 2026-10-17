@@ -27,8 +27,6 @@ const BUILDERS = {
       metalness: 1.0,
       roughness: 0.38,
       roughnessMap: brushedRoughness({ base: 0.4, streak: 0.18, direction: 'horizontal' }),
-      bumpMap: softNoise({ cells: 5, octaves: 4, key: 'inconel-bump' }),
-      bumpScale: 0.012,
       envMapIntensity: 1.25,
     })
     return m
@@ -45,8 +43,6 @@ const BUILDERS = {
       metalness: 1.0,
       roughness: 0.4,
       roughnessMap: brushedRoughness({ base: 0.42, streak: 0.18, direction: 'vertical', key: 'shell' }),
-      bumpMap: softNoise({ cells: 6, octaves: 4, key: 'shell-bump' }),
-      bumpScale: 0.01,
       envMapIntensity: 1.25,
       side: THREE.DoubleSide,
     }),
@@ -58,7 +54,6 @@ const BUILDERS = {
       color: new THREE.Color('#0a0b0d'),
       metalness: 0.72,
       roughness: 0.3,
-      roughnessMap: softNoise({ cells: 7, octaves: 5, key: 'floor' }),
       envMapIntensity: 0.9,
     }),
 
@@ -99,8 +94,6 @@ const BUILDERS = {
       metalness: 1.0,
       roughness: 0.36,
       roughnessMap: weldSeams({ sectors: 1, ribs: 16, key: 'cs-seams' }),
-      bumpMap: weldSeams({ sectors: 1, ribs: 16, key: 'cs-seams' }),
-      bumpScale: 0.06,
       envMapIntensity: 1.6,
     }),
 
@@ -151,17 +144,6 @@ const BUILDERS = {
       roughness: 0.7,
       roughnessMap: machinedSurface({ key: 'tungsten' }),
       envMapIntensity: 0.8,
-    }),
-
-  /** The hall: matte concrete, almost fully diffuse. */
-  concrete: () =>
-    new THREE.MeshStandardMaterial({
-      color: new THREE.Color('#141519'),
-      metalness: 0.0,
-      roughness: 0.96,
-      roughnessMap: softNoise({ cells: 4, octaves: 5, key: 'concrete' }),
-      envMapIntensity: 0.55,
-      side: THREE.DoubleSide,
     }),
 
   /** The 1.8 m reference figure. Matte black, so it reads as pure silhouette. */

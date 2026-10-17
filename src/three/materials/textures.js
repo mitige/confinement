@@ -216,6 +216,92 @@ export function machinedSurface({ size = 512, key = 'machined' } = {}) {
 }
 
 /**
+ * Periodic value noise, seamless on both axes.
+ *
+ * Seamlessness is the whole point: the plasma shader uses this in place of a
+ * computed FBM, sampling it by UV, and the plasma is a closed torus. A tiling
+ * texture sampled at integer frequencies wraps without a visible seam, where a
+ * non-tiling one would draw a bright line down the machine.
+ *
+ * Allocating this once and reading it is dramatically cheaper per fragment than
+ * evaluating noise in the shader: two texture fetches replace roughly eighty
+ * arithmetic operations, and this shader runs on overlapping additive shells.
+ */
+export function tileableNoise({ size = 256, octaves = 4, base = 8, key = 'tileable' } = {}) {
+  return memo(`${key}-${size}-${octaves}-${base}`, () => {
+    const { canvas, ctx } = makeCanvas(size)
+    const image = ctx.createImageData(size, size)
+    const data = image.data
+
+    // A cheap integer hash. Deterministic, so the texture is identical on every
+    // run and the plasma never looks different between reloads.
+    const hash = (x, y, seed) => {
+      let h = x * 374761393 + y * 668265263 + seed * 362437
+      h = (h ^ (h >> 13)) * 1274126177
+      h ^= h >> 16
+      return ((h >>> 0) % 100000) / 100000
+    }
+
+    const smooth = (t) => t * t * (3 - 2 * t)
+
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        let value = 0
+        let total = 0
+        let amplitude = 0.5
+
+        for (let o = 0; o < octaves; o += 1) {
+          // Each octave wraps at its own lattice size, which is what keeps the
+          // result tileable at every frequency.
+          const lattice = base * 2 ** o
+          const fx = (x / size) * lattice
+          const fy = (y / size) * lattice
+          const x0 = Math.floor(fx)
+          const y0 = Math.floor(fy)
+          const tx = smooth(fx - x0)
+          const ty = smooth(fy - y0)
+
+          const x0w = ((x0 % lattice) + lattice) % lattice
+          const y0w = ((y0 % lattice) + lattice) % lattice
+          const x1w = (x0w + 1) % lattice
+          const y1w = (y0w + 1) % lattice
+
+          const v00 = hash(x0w, y0w, o)
+          const v10 = hash(x1w, y0w, o)
+          const v01 = hash(x0w, y1w, o)
+          const v11 = hash(x1w, y1w, o)
+
+          const top = v00 + (v10 - v00) * tx
+          const bottom = v01 + (v11 - v01) * tx
+          value += amplitude * (top + (bottom - top) * ty)
+          total += amplitude
+          amplitude *= 0.5
+        }
+
+        const grey = Math.round((value / total) * 255)
+        const i = (y * size + x) * 4
+        data[i] = grey
+        data[i + 1] = grey
+        data[i + 2] = grey
+        data[i + 3] = 255
+      }
+    }
+
+    ctx.putImageData(image, 0, 0)
+
+    const tex = new THREE.CanvasTexture(canvas)
+    tex.wrapS = THREE.RepeatWrapping
+    tex.wrapT = THREE.RepeatWrapping
+    tex.minFilter = THREE.LinearMipmapLinearFilter
+    tex.magFilter = THREE.LinearFilter
+    tex.generateMipmaps = true
+    // Data, not colour: leaving it linear is what keeps the noise unbiased.
+    tex.needsUpdate = true
+    return tex
+  })
+}
+
+/**
  * A soft radial falloff, opaque at the centre and fully transparent at the rim.
  * Used as a baked contact shadow under the machine.
  */

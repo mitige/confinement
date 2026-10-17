@@ -6,12 +6,13 @@
  *  1. A cheap startup heuristic (`detectQuality`) from core count, pointer type
  *     and user agent. This is fast and usually right about form factor, but it
  *     cannot tell a fast integrated GPU from a slow one.
- *  2. A measured downgrade (`PerformanceGovernor`). After the opening frames have
- *     been drawn, the real frame time decides whether the tier survives. A 2023
- *     ultrabook and a desktop with the same core count differ enormously, and only
- *     measurement distinguishes them.
+ *  2. Measured adaptation (`PerformanceGovernor`). The real frame time then decides
+ *     the render resolution, and only if resolution bottoms out does the tier drop.
+ *     A 2023 ultrabook and a desktop with the same core count differ enormously, and
+ *     only measurement distinguishes them.
  *
- * The tier controls device pixel ratio, the post-processing chain, and MSAA.
+ * The tier sets the base device pixel ratio, the post-processing chain, and MSAA.
+ * It is a starting point now, not a verdict.
  */
 
 export function detectQuality() {
@@ -42,49 +43,22 @@ export function dprFor(quality) {
   if (typeof window === 'undefined') return 1
   const device = window.devicePixelRatio || 1
   if (quality === 'high') return Math.min(device, 2)
-  if (quality === 'medium') return Math.min(device, 1.25)
-  return Math.min(device, 0.75)
+  if (quality === 'medium') return Math.min(device, 1.5)
+  /*
+   * Caps at 1 on purpose. The tier used to return 0.75 here, which compounded
+   * with the governor's own scale — a downgraded tier plus a 0.5 scale produced
+   * 0.375 and an image that was simply soft. Resolution belongs to the governor;
+   * a tier change is about shedding features.
+   */
+  return Math.min(device, 1)
 }
+
+/** Hard floor on the final device pixel ratio, whatever the levers produce. */
+export const MIN_DPR = 0.42
 
 /** Wireframe MSAA sample count. Ignored when the post chain is disabled. */
 export function samplesFor(quality) {
   return quality === 'high' ? 4 : 0
 }
 
-export const QUALITY_LABEL = {
-  high: 'full pipeline',
-  medium: 'reduced pipeline',
-  low: 'minimal pipeline',
-}
 
-/**
- * Frame-time governor.
- *
- * Skips the first frames, which are dominated by shader compilation, then judges
- * the tier on a rolling average. Downgrades only — never upgrades — so the piece
- * cannot oscillate between tiers mid-scroll.
- */
-export const GOVERNOR = {
-  /**
-   * Frames to discard before sampling; these include shader compilation, which is
-   * far slower than any steady-state frame and would otherwise force a downgrade
-   * on hardware that does not need one.
-   */
-  warmup: 24,
-  /**
-   * Frames to average. Sixty frames at 60 fps is one second, which is a stable
-   * enough average — and at 17 fps it is three and a half seconds, which is the
-   * point: the slower the machine, the sooner it adapts.
-   */
-  sample: 36,
-  /** Below this average frame rate, step down a tier. */
-  thresholds: { high: 32, medium: 20 },
-}
-
-export function nextTier(tier, fps) {
-  const threshold = GOVERNOR.thresholds[tier]
-  if (!threshold || fps >= threshold) return null
-  if (tier === 'high') return 'medium'
-  if (tier === 'medium') return 'low'
-  return null
-}

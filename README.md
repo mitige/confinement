@@ -107,6 +107,11 @@ This model cannot view images, so the review loop is measurement instead of eyeb
 
 - `npm run verify` — geometry, radial-build and timeline assertions. Exit code 1 on failure.
 - `npm run probe` — reports which GL backend headless Chrome reaches, and the frame rate.
+- `npm run perf` — frame rate, settled device pixel ratio and GPU resource counts per resolution.
+- `node scripts/click-audit.mjs` — for each act, asks the document what is actually under five
+  points in the viewport. Every 2D section fills the screen and its links set `pointer-events:
+  auto`, which an ancestor cannot override, so an invisible section would otherwise swallow every
+  click. This is what catches that.
 - `npm run shots` — screenshots every act at a deterministic scroll position, and fails on any
   console error or page exception. `npm run shots:mobile` and `--reduced` run the same pass at
   390×844 and with `prefers-reduced-motion: reduce`.
@@ -131,25 +136,46 @@ matches the normal pass to within 2%.
 Timeline checks: 17 acts, 3780 viewport heights, camera chain continuous across every boundary,
 and no act exceeds the three-ghosted-layer budget.
 
-Frame rate, measured on **AMD Radeon 610M** — a 2-compute-unit, 15 W integrated GPU, which is
-roughly one tenth of an M-series Mac — at 1440×900:
+## Performance
 
-| Act | Before optimisation | After |
+The frame rate adapts. Resolution is spent first, because the cost of this scene is dominated by
+fragment work — full-screen ghosted layers plus the additive plasma shader — and because losing
+sharpness is far less noticeable than losing the glow. Only when resolution has bottomed out does
+the governor shed bloom, vignette and MSAA. Because the lever is the canvas, the typography is
+never softened: it is DOM, and stays sharp at any render scale.
+
+Measured on **AMD Radeon 610M** — a 2-compute-unit, 15 W integrated GPU, roughly a tenth of an
+M-series Mac — in the heaviest act at 1440×900:
+
+| | fps | render resolution |
 |---|---|---|
-| magnets | 13.6 fps | 34.5 fps |
-| overture | 31.3 fps | 39.7 fps |
-| ignition (heaviest) | 12.5 fps | 17.6 fps |
-| mobile 390×844 | 12.2 fps | 29.2 fps |
+| original | 12–17 | 1440×900 |
+| after cutting ghosted layers and the hall wall | 21–25 | 1440×900 |
+| **with adaptive resolution** | **45–54** | 720×450 |
 
-GPU resources stay flat at 28 geometries, 29 textures and ~16 compiled programs, so nothing is
-being allocated per frame. The largest single win was restructuring the timeline to cap
-transparent full-screen layers: ghosted assemblies drop depth writing, so each one re-shades all
-the geometry behind it, and going from six to three roughly doubled the frame rate. `npm run
-verify` now asserts that budget so it cannot regress silently.
+The spread is real measurement noise: this machine was under a load average of 13 from unrelated
+compilation during the runs. Treat the ratio as the result, not the digits.
 
-The adaptive tier provably engages — measured steps of dpr 1.00→0.75 and 2.00→1.25 on this
-hardware. Real-world frame rates will be much higher than the table above; these are the numbers
-from the weakest GPU available here, not a target.
+Changes that produced it, in order of what they were worth:
+
+1. **Adaptive render resolution.** Walks between 0.5 and 1.0 in steps of 0.1, targeting 50–58 fps,
+   with an extra allowance for text acts where the canvas runs at 10% opacity. Roughly 2×.
+2. **A budget on ghosted layers.** A transparent assembly with depth writing off re-shades every
+   pixel it covers, including all the geometry behind it. Going from six to three roughly doubled
+   the frame rate in the magnets act, and `npm run verify` now asserts the budget so it cannot
+   regress silently.
+3. **Removing the hall wall.** A 180 m double-sided concrete cylinder that cost a full-screen
+   shaded pass to render a surface that is nearly black anyway.
+4. **Turbulence from a texture instead of the shader.** Two lookups in a seamless tileable noise
+   replace about eighty arithmetic operations, in the most expensive fragment shader in the piece.
+5. **Two plasma shells instead of three**, and front faces only. The middle shell was nested
+   between the other two and contributed little while costing a third of the fill.
+6. **Dropping texture work that showed nothing** — bump maps scaled at 0.01 on the largest
+   surfaces, and a roughness map across the entire floor.
+
+GPU resources stay flat at 26 geometries and ~26 textures, so nothing is allocated per frame.
+`npm run perf` reports the frame rate, the device pixel ratio the governor settled on, and those
+resource counts; `?res=1` pins the render scale, which is how the governor is A/B tested.
 
 ## Accessibility
 

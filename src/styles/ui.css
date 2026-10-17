@@ -15,6 +15,7 @@
 }
 
 .identity__name {
+  text-transform: lowercase;
   font-size: var(--fs-body);
   font-weight: var(--w-light);
   letter-spacing: var(--track-tight);
@@ -22,10 +23,10 @@
 }
 
 .identity__handle {
+  text-transform: lowercase;
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--track-micro);
-  text-transform: uppercase;
   color: var(--fg-3);
   pointer-events: auto;
 }
@@ -49,14 +50,15 @@
 }
 
 .act-meter__label {
+  text-transform: lowercase;
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--track-micro);
-  text-transform: uppercase;
   color: var(--fg-2);
 }
 
 .act-meter__count {
+  text-transform: lowercase;
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--track-mono);
@@ -89,6 +91,7 @@
 .plate {
   position: absolute;
   inset: 0;
+  visibility: hidden;
   display: grid;
   padding: var(--gutter);
   padding-top: calc(var(--gutter) * 1.6);
@@ -110,29 +113,7 @@
   max-width: min(100%, var(--max-w));
 }
 
-.plate__numeral {
-  display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: var(--track-micro);
-  text-transform: uppercase;
-  color: var(--fg-3);
-}
-
-.plate__numeral::after {
-  content: '';
-  width: clamp(2rem, 6vw, 5rem);
-  height: 1px;
-  background: var(--hairline);
-}
-
-.plate--centre .plate__numeral {
-  justify-content: center;
-}
-
-.plate__display {
+.plate--centre .plate__display {
   font-size: var(--fs-mega);
   font-weight: var(--w-thin);
   line-height: 0.92;
@@ -168,9 +149,7 @@
 
 .stat {
   display: grid;
-  gap: 0.55rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid var(--hairline);
+  gap: 0.5rem;
 }
 
 .stat__value {
@@ -192,10 +171,10 @@
 }
 
 .stat__label {
+  text-transform: lowercase;
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--track-mono);
-  text-transform: uppercase;
   color: var(--fg-3);
 }
 
@@ -204,6 +183,7 @@
 .project {
   position: absolute;
   inset: 0;
+  visibility: hidden;
   display: grid;
   align-content: center;
   padding: var(--gutter);
@@ -237,14 +217,6 @@
   width: min(100%, 40rem);
 }
 
-.project__index {
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: var(--track-micro);
-  text-transform: uppercase;
-  color: var(--fg-3);
-}
-
 .project__name {
   font-size: var(--fs-display);
   font-weight: var(--w-thin);
@@ -252,14 +224,6 @@
   letter-spacing: var(--track-display);
   color: var(--fg-0);
   word-break: break-word;
-}
-
-.project__kicker {
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: var(--track-micro);
-  text-transform: uppercase;
-  color: var(--fg-2);
 }
 
 .project__body {
@@ -273,16 +237,16 @@
 }
 
 .project__metrics {
+  text-transform: lowercase;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 1.1rem;
-  padding-top: 0.9rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--hairline);
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--track-mono);
-  text-transform: uppercase;
   color: var(--fg-2);
   font-variant-numeric: tabular-nums;
 }
@@ -292,6 +256,7 @@
 }
 
 .project__link {
+  text-transform: lowercase;
   justify-self: start;
   display: inline-flex;
   align-items: center;
@@ -301,7 +266,6 @@
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--track-mono);
-  text-transform: uppercase;
   color: var(--fg-1);
   pointer-events: auto;
   transition: color var(--dur-fast) var(--ease-out),
@@ -326,10 +290,16 @@
 .repos {
   position: absolute;
   inset: 0;
+  visibility: hidden;
   display: grid;
   align-content: center;
-  gap: clamp(1.4rem, 2.6vw, 2.4rem);
-  padding: var(--gutter);
+  gap: clamp(1.6rem, 3vw, 2.8rem);
+  /*
+   * The top padding is a collision guard, not decoration: the identity block is
+   * pinned to the top gutter, and a vertically centred list of fifteen rows was
+   * crowding it.
+   */
+  padding: clamp(9rem, 15vh, 11rem) var(--gutter) clamp(4rem, 9vh, 7rem);
   opacity: 0;
   will-change: opacity;
 }
@@ -343,6 +313,7 @@
 }
 
 .repos__title {
+  text-transform: lowercase;
   font-size: var(--fs-h1);
   font-weight: var(--w-thin);
   letter-spacing: var(--track-display);
@@ -350,10 +321,10 @@
 }
 
 .repos__summary {
+  text-transform: lowercase;
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
   letter-spacing: var(--track-mono);
-  text-transform: uppercase;
   color: var(--fg-2);
   font-variant-numeric: tabular-nums;
 }
@@ -362,30 +333,40 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: clamp(1.5rem, 4vw, 4.5rem);
-  border-top: 1px solid var(--hairline);
 }
 
 .repo {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   gap: 1rem;
-  padding: 0.72rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0.62rem 0;
   pointer-events: auto;
-  transition: border-color var(--dur-fast) var(--ease-out);
 }
 
-.repo:hover {
-  border-bottom-color: var(--hairline-strong);
+/*
+ * With the rules gone, hover feedback moves onto the name itself. Names sit at the
+ * secondary grey by default so the six flagship rows, which are set in a heavier
+ * weight, still read as the top of the hierarchy.
+ */
+.repo__name {
+  text-transform: lowercase;
+  color: var(--fg-1);
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
-.repo__index {
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: 0.12em;
-  color: var(--fg-3);
-  font-variant-numeric: tabular-nums;
+.repo:hover .repo__name,
+.repo--flagship .repo__name {
+  color: var(--fg-0);
+}
+
+.repo__stats {
+  text-transform: lowercase;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.repo:hover .repo__stats {
+  color: var(--fg-2);
 }
 
 .repo__main {
@@ -405,17 +386,6 @@
   font-weight: var(--w-regular);
 }
 
-.repo__blurb {
-  font-size: clamp(0.68rem, 0.76vw, 0.78rem);
-  font-weight: var(--w-light);
-  line-height: 1.35;
-  letter-spacing: var(--track-normal);
-  color: var(--fg-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .repo__stats {
   display: flex;
   align-items: baseline;
@@ -423,13 +393,13 @@
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--track-mono);
-  text-transform: uppercase;
   color: var(--fg-3);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .repo__stars {
+  text-transform: lowercase;
   color: var(--fg-1);
   min-width: 2.1rem;
   text-align: right;
@@ -445,6 +415,7 @@
 .coda {
   position: absolute;
   inset: 0;
+  visibility: hidden;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -456,6 +427,7 @@
 }
 
 .coda__display {
+  text-transform: lowercase;
   font-size: var(--fs-display);
   font-weight: var(--w-thin);
   letter-spacing: var(--track-display);
@@ -466,22 +438,6 @@
 
 .coda__display:hover {
   color: var(--fg-1);
-}
-
-.coda__lines {
-  display: grid;
-  gap: 0.5rem;
-  font-family: var(--font-mono);
-  font-size: var(--fs-mono);
-  letter-spacing: var(--track-mono);
-  text-transform: uppercase;
-  color: var(--fg-3);
-}
-
-.coda__rule {
-  width: clamp(4rem, 14vw, 12rem);
-  height: 1px;
-  background: var(--hairline);
 }
 
 /* ------------------------------------------------------------------ loader */
@@ -504,12 +460,12 @@
 }
 
 .loader__title {
+  text-transform: lowercase;
   font-family: var(--font-mono);
   font-size: var(--fs-mono);
-  letter-spacing: 0.42em;
-  text-transform: uppercase;
-  color: var(--fg-2);
-  padding-left: 0.42em;
+  letter-spacing: 0.3em;
+  color: var(--fg-1);
+  padding-left: 0.3em;
 }
 
 .loader__track {
@@ -528,18 +484,6 @@
   transform-origin: left center;
 }
 
-.loader__meta {
-  display: flex;
-  justify-content: space-between;
-  width: min(38vw, 300px);
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: var(--track-micro);
-  text-transform: uppercase;
-  color: var(--fg-3);
-  font-variant-numeric: tabular-nums;
-}
-
 /* ------------------------------------------------------------ small screens */
 
 @media (max-width: 860px) {
@@ -550,10 +494,6 @@
 
   .repos__grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .repo__blurb {
-    display: none;
   }
 
   .project {

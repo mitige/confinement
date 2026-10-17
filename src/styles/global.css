@@ -130,7 +130,7 @@ html.lenis body {
   font-size: var(--fs-mono);
   font-weight: var(--w-regular);
   letter-spacing: var(--track-mono);
-  text-transform: uppercase;
+  text-transform: lowercase;
   color: var(--fg-2);
   font-variant-numeric: tabular-nums;
 }
@@ -140,7 +140,7 @@ html.lenis body {
   font-size: var(--fs-micro);
   font-weight: var(--w-regular);
   letter-spacing: var(--track-micro);
-  text-transform: uppercase;
+  text-transform: lowercase;
   color: var(--fg-3);
   font-variant-numeric: tabular-nums;
 }
@@ -249,7 +249,7 @@ html.lenis body {
   font-family: var(--font-mono);
   font-size: var(--fs-micro);
   letter-spacing: var(--track-mono);
-  text-transform: uppercase;
+  text-transform: lowercase;
 }
 
 @media (prefers-reduced-motion: reduce) {

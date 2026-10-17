@@ -7,25 +7,29 @@ import { radialFalloff } from '../materials/textures.js'
 /**
  * The hall the machine stands in.
  *
- * Three surfaces: a polished floor, a matte cylindrical wall, and a baked contact
- * shadow under the machine. The wall is double-sided so it never disappears when
- * the camera swings wide, and its radius is deliberately far larger than any
- * camera position — if the camera ever leaves the hall it ends up looking at a
- * concrete wall instead of at the machine.
+ * Two surfaces: a polished floor and a baked contact shadow. There is no wall.
+ *
+ * A 180 m radius concrete cylinder was removed for frame time: the camera stands
+ * inside it, so it covered every pixel the machine did not, and being double-sided
+ * PBR concrete it cost a full-screen shaded pass in order to render a surface that
+ * is nearly black. Against a black clear colour and exponential fog, its absence is
+ * invisible and the background is cleaner for it.
  *
  * The shadow is a static radial falloff rather than a real shadow map. At this
- * scale a shadow map would need a footprint wide enough to cover the whole hall,
+ * scale a shadow map would need a footprint wide enough to cover the whole floor,
  * which costs a large render target for a result that is barely visible from the
  * angles this piece actually uses. A baked gradient grounds the machine for free.
  */
 export function Hall() {
-  const [concrete, floor] = useFade(['concrete', 'floorPolish'], 'hall')
+  const [floor] = useFade(['floorPolish'], 'hall')
 
   const geometry = useMemo(
     () => ({
-      floor: new THREE.CircleGeometry(HALL.radius, 128),
-      wall: new THREE.CylinderGeometry(HALL.radius, HALL.radius, HALL.height, 128, 1, true),
-      shadow: new THREE.PlaneGeometry(CRYOSTAT.baseRingRadius * 3.4, CRYOSTAT.baseRingRadius * 3.4),
+      floor: new THREE.CircleGeometry(HALL.radius, 96),
+      shadow: new THREE.PlaneGeometry(
+        CRYOSTAT.baseRingRadius * 3.4,
+        CRYOSTAT.baseRingRadius * 3.4,
+      ),
     }),
     [],
   )
@@ -49,11 +53,6 @@ export function Hall() {
         material={floor}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0.02, 0]}
-      />
-      <mesh
-        geometry={geometry.wall}
-        material={concrete}
-        position={[0, HALL.height / 2, 0]}
       />
       <mesh
         geometry={geometry.shadow}
