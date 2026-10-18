@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { PF_COILS, MIDPLANE } from '../../data/iter.js'
 import { useFade } from '../useFade.js'
 import { circleCenterline, roundedRectProfile, sweepClosed } from '../geometry/sweep.js'
@@ -16,7 +16,8 @@ import { circleCenterline, roundedRectProfile, sweepClosed } from '../geometry/s
  * kernel's out-of-plane axis is fixed.
  */
 export function PFCoils() {
-  const [coilCase] = useFade(['coilCasePF'], 'pf')
+  const group = useRef(null)
+  const [coilCase] = useFade(['coilCasePF'], 'pf', { groupRef: group })
 
   const coils = useMemo(
     () =>
@@ -32,7 +33,7 @@ export function PFCoils() {
   )
 
   return (
-    <group renderOrder={2}>
+    <group ref={group} renderOrder={2}>
       {coils.map((coil) => (
         <mesh
           key={coil.name}

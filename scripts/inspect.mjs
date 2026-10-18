@@ -5,7 +5,12 @@
  * the rendered result, so a specific piece of geometry can be looked at instead of
  * hunted for. Used to confirm the cryostat's top cap before and after the fix.
  *
- * Usage: node scripts/inspect.mjs "<url-with-camera-params>" <output-name>
+ * The machine's *state* comes from the act timeline, which is driven by scroll — so
+ * an act has to be scrolled to, even though the camera override ignores where the
+ * timeline would have put the camera. Without this the tool silently inspects the
+ * opening act, where nothing is ghosted.
+ *
+ * Usage: node scripts/inspect.mjs "<url-with-camera-params>" <output-name> [actId] [fraction]
  */
 
 import { chromium } from 'playwright-core'
@@ -15,8 +20,10 @@ import { readFile } from 'node:fs/promises'
 
 const url = process.argv[2]
 const name = process.argv[3] || 'inspect'
+const act = process.argv[4] || null
+const at = Number(process.argv[5] ?? 0.6)
 if (!url) {
-  console.error('usage: node scripts/inspect.mjs "<url>" <name>')
+  console.error('usage: node scripts/inspect.mjs "<url>" <name> [actId] [fraction]')
   process.exit(1)
 }
 
@@ -37,7 +44,23 @@ page.on('console', (m) => { if (m.type() === 'error') problems.push(`[console] $
 
 await page.goto(url, { waitUntil: 'load', timeout: 60_000 })
 await page.waitForSelector('.loader', { state: 'detached', timeout: 90_000 })
-await page.waitForTimeout(3000)
+
+// Put the machine into the requested act's state, then let the fades settle.
+if (act) {
+  await page.evaluate(
+    ({ id, fraction }) => {
+      const el = document.querySelector(`[data-act="${id}"]`)
+      if (!el) return
+      const y = el.offsetTop + el.offsetHeight * fraction
+      if (window.__confinement?.lenis) window.__confinement.lenis.scrollTo(y, { immediate: true })
+      else window.scrollTo(0, y)
+    },
+    { id: act, fraction: at },
+  )
+  await page.waitForTimeout(3500)
+} else {
+  await page.waitForTimeout(3000)
+}
 
 const file = path.join(OUT, `${name}.png`)
 await page.screenshot({ path: file })

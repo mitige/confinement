@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { VESSEL, MIDPLANE } from '../../data/iter.js'
 import { useFade } from '../useFade.js'
@@ -20,7 +20,8 @@ import { fluxSurfaceOutline } from '../geometry/sweep.js'
  * profile points by 112 segments — rather than to a round number.
  */
 export function VacuumVessel() {
-  const [steel] = useFade(['vesselSteel'], 'vessel')
+  const group = useRef(null)
+  const [steel] = useFade(['vesselSteel'], 'vessel', { groupRef: group })
 
   const { outer, inner } = useMemo(() => {
     const kappa = VESSEL.halfHeight / VESSEL.halfWidth
@@ -44,7 +45,7 @@ export function VacuumVessel() {
   }, [])
 
   return (
-    <group renderOrder={3} position={[0, MIDPLANE, 0]}>
+    <group ref={group} renderOrder={3} position={[0, MIDPLANE, 0]}>
       <mesh geometry={outer} material={steel} />
       <mesh geometry={inner} material={steel} />
     </group>

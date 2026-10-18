@@ -22,9 +22,11 @@ const RIB_COUNT = 24
 const RING_BANDS = [7.1, 14.2, 21.3]
 
 export function Cryostat() {
+  const group = useRef(null)
   const [shell, solid, heavy] = useFade(
     ['inconelShell', 'inconel', 'inconelHeavy'],
     'cryostat',
+    { groupRef: group },
   )
 
   const ribs = useRef(null)
@@ -102,7 +104,7 @@ export function Cryostat() {
   const plateY = CRYOSTAT.height - plateHeight / 2
 
   return (
-    <group renderOrder={1}>
+    <group ref={group} renderOrder={1}>
       <mesh
         geometry={geometry.outer}
         material={shell}

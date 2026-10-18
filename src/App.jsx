@@ -10,7 +10,7 @@ import { RepoGrid } from './ui/RepoGrid.jsx'
 import { Coda } from './ui/Coda.jsx'
 import { Hud } from './ui/Hud.jsx'
 import { Loader } from './ui/Loader.jsx'
-import { detectQuality, dprFor, MIN_DPR } from './lib/quality.js'
+import { detectQuality, dprFor, minRenderDpr, MIN_DPR } from './lib/quality.js'
 import { PerformanceGovernor } from './three/PerformanceGovernor.jsx'
 
 /**
@@ -79,6 +79,8 @@ function debugParams() {
       : params.get('gentle') === '1'
         ? 'gentle'
         : 'none',
+    /** `?minres=off` renders exactly the window's pixel size, with no floor. */
+    resolveFloor: params.get('minres') !== 'off',
     /** Anything other than high is an explicit request to spend features. */
     tier: tier === 'medium' || tier === 'low' ? tier : 'high',
   }
@@ -112,6 +114,22 @@ function Experience() {
    */
   const [renderScale, setRenderScale] = useState(1)
   const [sceneReady, setSceneReady] = useState(false)
+
+  /*
+   * Window size, tracked so the resolution floor can be honoured. The Canvas takes
+   * its device pixel ratio from a prop, so this has to re-render on resize.
+   */
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === 'undefined' ? 1920 : window.innerWidth,
+    height: typeof window === 'undefined' ? 1080 : window.innerHeight,
+  }))
+
+  useEffect(() => {
+    const onResize = () =>
+      setViewport({ width: window.innerWidth, height: window.innerHeight })
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   const { activeIndex, timeline, reduced } = useDirector()
 
   const act = timeline[activeIndex]
@@ -140,13 +158,32 @@ function Experience() {
       >
         <Canvas
           flat
-          dpr={
-            debug.forcedScale ??
-            Math.max(
+          dpr={(() => {
+            // An explicit pin wins outright, floor included.
+            if (debug.forcedScale !== null) return debug.forcedScale
+
+            const scaled =
+              dprFor(quality) * (debug.scaleMode === 'none' ? 1 : renderScale)
+
+            /*
+             * The floor applies only in the default mode. It exists to guarantee a
+             * 1920x1080 buffer, and it would defeat the point of `?gentle=1` or
+             * `?adaptive=1` to clamp them straight back up — those exist precisely
+             * for machines that cannot afford the floor.
+             */
+            const floorApplies = debug.resolveFloor && debug.scaleMode === 'none'
+            if (!floorApplies) return Math.max(MIN_DPR, scaled)
+
+            /*
+             * It only ever raises the ratio. On a window already at 1920x1080 or
+             * larger it is a no-op; on a smaller one it supersamples.
+             */
+            return Math.max(
               MIN_DPR,
-              dprFor(quality) * (debug.scaleMode === 'none' ? 1 : renderScale),
+              scaled,
+              minRenderDpr(viewport.width, viewport.height),
             )
-          }
+          })()}
           camera={{ position: [0, 21, 92], fov: 30, near: 0.1, far: 900 }}
           gl={{
             antialias: false,

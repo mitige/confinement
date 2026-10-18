@@ -21,7 +21,8 @@ const THETA_START = -Math.PI / 3
 const THETA_SPAN = (Math.PI * 5) / 3
 
 export function Blanket() {
-  const [steel] = useFade(['blanketSteel'], 'blanket')
+  const group = useRef(null)
+  const [steel] = useFade(['blanketSteel'], 'blanket', { groupRef: group })
   const mesh = useRef(null)
 
   const { geometry, placements } = useMemo(() => {
@@ -125,12 +126,19 @@ export function Blanket() {
     inst.instanceMatrix.needsUpdate = true
   }, [placements])
 
+  /*
+   * Wrapped in a group even though it holds a single mesh: the ghost swap
+   * reaches assemblies by traversing one, and an InstancedMesh cannot be its
+   * own ancestor.
+   */
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[geometry, steel, placements.length]}
-      renderOrder={4}
-      frustumCulled={false}
-    />
+    <group ref={group}>
+      <instancedMesh
+        ref={mesh}
+        args={[geometry, steel, placements.length]}
+        renderOrder={4}
+        frustumCulled={false}
+      />
+    </group>
   )
 }

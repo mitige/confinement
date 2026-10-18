@@ -15,7 +15,10 @@ import { useFade } from '../useFade.js'
  * a structure rather than as floating blocks.
  */
 export function Divertor() {
-  const [tungsten, support] = useFade(['tungsten', 'blanketSteel'], 'divertor')
+  const group = useRef(null)
+  const [tungsten, support] = useFade(['tungsten', 'blanketSteel'], 'divertor', {
+    groupRef: group,
+  })
   const mesh = useRef(null)
 
   const { geometry, placements } = useMemo(() => {
@@ -66,7 +69,7 @@ export function Divertor() {
   )
 
   return (
-    <group renderOrder={5}>
+    <group ref={group} renderOrder={5}>
       <instancedMesh
         ref={mesh}
         args={[geometry, tungsten, placements.length]}

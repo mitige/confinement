@@ -228,7 +228,35 @@ is worth having there; anything with a real graphics chip will sit at maximum:
 The spread is real measurement noise: this machine was under a load average of 13 from unrelated
 compilation during the runs. Treat the ratio as the result, not the digits.
 
-Changes that produced it, in order of what they were worth:
+The single biggest win was free of resolution at all:
+
+**Ghosted assemblies render with a dedicated cheap material.** A transparent surface
+with depth writing disabled shades every pixel it covers, *including all the geometry
+behind it* — that is the largest cost in the scene, and at 15% opacity you are looking
+at a silhouette, not at brushed Inconel. So a ghost gets its own material: no
+environment sampling, no roughness or normal maps, no PBR lighting loop, just a
+Fresnel edge over a flattish body. A handful of instructions instead of a few hundred.
+
+It happens to suit the piece — a ghosted cryostat should read as a line drawing of a
+cryostat, not as a dim photograph of one. Measured at 1920×1080 in the heaviest act:
+
+| | fps | median frame |
+|---|---|---|
+| ghost swap off (`?ghost=0.001`) | 6.9 – 12.4 | 83 – 150 ms |
+| **ghost swap on** | **13.3 – 18.6** | **50 – 67 ms** |
+
+Between 1.55× and 1.93× across runs, at full resolution. The two appearances were
+compared at the same opacity before shipping — 68.7 mean luminance against 71.9, a
+4.7% difference, and slightly *more* detail from the rim, so the swap is not visible
+during a fade.
+
+Two smaller changes followed from the same reasoning. Assemblies at 94% opacity or
+above now render as opaque rather than transparent, because an opaque pass gets early-Z
+rejection where a transparent one does not, and a 6% blend is invisible. And the ghost
+swap is repaired if React re-applies the `material` prop on a re-render, which would
+otherwise silently undo it.
+
+Earlier changes, in order of what they were worth:
 
 1. **Adaptive render resolution.** Walks between 0.5 and 1.0 in steps of 0.1, targeting 50–58 fps,
    with an extra allowance for text acts where the canvas runs at 10% opacity. Roughly 2×.

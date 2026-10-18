@@ -15,24 +15,28 @@
  * every frame, shows up here as a count that grows.
  *
  * Usage: node scripts/perf.mjs
+ *        PREVIEW_URL=http://127.0.0.1:5277/ node scripts/perf.mjs
  */
 
 import { chromium } from 'playwright-core'
 
-const BASE = 'http://127.0.0.1:5273/'
+// Same override as the screenshot harness, so either can point at a preview
+// build, a dev server or the deployed site.
+const BASE = process.env.PREVIEW_URL || 'http://127.0.0.1:5273/'
 
 /** The heaviest act: the plasma at full intensity inside ghosted steel. */
 const HEAVY_ACT = 'ignition'
 const HEAVY_AT = 0.68
 
 const CASES = [
-  { label: '1440x900  static (no adapt)', width: 1440, height: 900, dpr: 1, query: '?static=1' },
-  { label: '1440x900  gentle (default)', width: 1440, height: 900, dpr: 1 },
-  { label: '1440x900  adaptive=1 (full)', width: 1440, height: 900, dpr: 1, query: '?adaptive=1' },
-  { label: '1440x900  dpr 2  gentle', width: 1440, height: 900, dpr: 2 },
-  { label: '1920x1080 gentle', width: 1920, height: 1080, dpr: 1 },
-  { label: ' 390x844  dpr 3  gentle', width: 390, height: 844, dpr: 3, mobile: true },
-  { label: '1440x900  reduced-motion', width: 1440, height: 900, dpr: 1, reduced: true },
+  // The ghost swap is A/B tested: ?ghost=0.001 disables it entirely, so the pair
+  // below differ in nothing but the material a ghosted assembly renders with.
+  { label: '1920x1080 ghost ON', width: 1920, height: 1080, dpr: 1 },
+  { label: '1920x1080 ghost OFF', width: 1920, height: 1080, dpr: 1, query: '?ghost=0.001' },
+  { label: '1920x1080 ghost + gentle', width: 1920, height: 1080, dpr: 1, query: '?gentle=1' },
+  { label: '1440x900  ghost ON (2.07 Mpx)', width: 1440, height: 900, dpr: 1 },
+  { label: ' 390x844  dpr 3  ghost ON', width: 390, height: 844, dpr: 3, mobile: true },
+  { label: '1920x1080 reduced-motion', width: 1920, height: 1080, dpr: 1, reduced: true },
 ]
 
 const BASE_ARGS = [

@@ -15,7 +15,8 @@ import { dShapeCenterline, roundedRectProfile, sweepClosed } from '../geometry/s
  * the vertical axis only, so a single instance matrix per coil is enough.
  */
 export function TFCoils() {
-  const [coilCase] = useFade(['coilCaseTF'], 'coils')
+  const group = useRef(null)
+  const [coilCase] = useFade(['coilCaseTF'], 'coils', { groupRef: group })
   const mesh = useRef(null)
 
   const geometry = useMemo(
@@ -49,12 +50,19 @@ export function TFCoils() {
     inst.instanceMatrix.needsUpdate = true
   }, [])
 
+  /*
+   * Wrapped in a group even though it holds a single mesh: the ghost swap
+   * reaches assemblies by traversing one, and an InstancedMesh cannot be its
+   * own ancestor.
+   */
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[geometry, coilCase, TF_COILS.count]}
-      renderOrder={2}
-      frustumCulled={false}
-    />
+    <group ref={group}>
+      <instancedMesh
+        ref={mesh}
+        args={[geometry, coilCase, TF_COILS.count]}
+        renderOrder={2}
+        frustumCulled={false}
+      />
+    </group>
   )
 }

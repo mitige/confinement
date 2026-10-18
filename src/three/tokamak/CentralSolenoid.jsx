@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { CENTRAL_SOLENOID, MIDPLANE } from '../../data/iter.js'
 import { useFade } from '../useFade.js'
@@ -13,7 +13,10 @@ import { useFade } from '../useFade.js'
  * conductor joints are on the real machine.
  */
 export function CentralSolenoid() {
-  const [steel, copper] = useFade(['coilCaseCS', 'windingCopper'], 'cs')
+  const group = useRef(null)
+  const [steel, copper] = useFade(['coilCaseCS', 'windingCopper'], 'cs', {
+    groupRef: group,
+  })
 
   const { modules, bands } = useMemo(() => {
     const { modules: count, height, outerRadius } = CENTRAL_SOLENOID
@@ -52,7 +55,7 @@ export function CentralSolenoid() {
   }, [])
 
   return (
-    <group renderOrder={2}>
+    <group ref={group} renderOrder={2}>
       {modules.list.map((m, i) => (
         <mesh key={`mod-${i}`} geometry={modules.geometry} material={steel} position={[0, m.y, 0]} />
       ))}

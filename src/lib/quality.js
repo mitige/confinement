@@ -56,6 +56,29 @@ export function dprFor(quality) {
 /** Hard floor on the final device pixel ratio, whatever the levers produce. */
 export const MIN_DPR = 0.42
 
+/**
+ * The render buffer never carries fewer pixels than 1080p.
+ *
+ * Stated as a pixel *count* rather than as 1920x1080, which matters more than it
+ * sounds. Requiring a minimum width would force a 390 px phone viewport to render
+ * 1920 px wide — eight megapixels and one and a half frames per second — when the
+ * phone's own screen is narrower than that anyway. Asking for the area instead
+ * preserves the aspect ratio and lands at a sane ratio on every viewport: exactly
+ * 1920x1080 on a 1920x1080 window, 1.27x on a 1440x900 window, 2.5x on a phone,
+ * and a no-op on any HiDPI display, which already exceeds it.
+ *
+ * Raising the ratio above what the window occupies is supersampling: it costs GPU
+ * time to buy a cleaner image. `?minres=off` renders the window's exact pixel size.
+ */
+export const MIN_RENDER_PIXELS = 1920 * 1080
+
+/** The ratio needed to reach the minimum pixel count in this viewport. */
+export function minRenderDpr(width, height) {
+  const area = width * height
+  if (!area) return 1
+  return Math.sqrt(MIN_RENDER_PIXELS / area)
+}
+
 /** Wireframe MSAA sample count. Ignored when the post chain is disabled. */
 export function samplesFor(quality) {
   return quality === 'high' ? 4 : 0
