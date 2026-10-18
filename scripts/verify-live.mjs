@@ -8,12 +8,14 @@
  * Also reports whether post-processing is present by looking for the WebGL
  * programs the composer adds, and checks that every act is reachable.
  *
- * Usage: node scripts/verify-live.mjs [url]
+ * Usage: node scripts/verify-live.mjs [url] [caseSubstring]
  */
 
 import { chromium } from 'playwright-core'
+import { waitForApp } from '../scripts/lib/ready.mjs'
 
 const URL = process.argv[2] || 'https://mitige.github.io/confinement/'
+const FILTER = process.argv[3] || null
 
 /**
  * The floor is the headline claim, so it is checked across window sizes: the
@@ -41,8 +43,9 @@ console.log(`\n  ${URL}\n`)
 console.log('  window / mode             dpr   drawing buffer      megapixels  floor   acts')
 console.log('  ' + '-'.repeat(76))
 let shortfall = 0
+let failures = 0
 
-for (const test of CASES) {
+for (const test of CASES.filter((c) => !FILTER || c.label.includes(FILTER))) {
   const page = await browser.newPage({
     viewport: { width: test.width, height: test.height },
     deviceScaleFactor: test.mobile ? 3 : 1,
@@ -54,8 +57,11 @@ for (const test of CASES) {
   })
   page.setDefaultTimeout(120_000)
   try {
-    await page.goto(URL + test.query, { waitUntil: 'load', timeout: 60_000 })
-    await page.waitForSelector('.loader', { state: 'detached', timeout: 120_000 })
+        // `test.query` is undefined for the default cases; concatenating it directly
+    // produced ".../confinement/undefined", a 404, and five failures that looked
+    // exactly like a broken default code path on the deployed site.
+    await page.goto(URL + (test.query ?? ''), { waitUntil: 'load', timeout: 60_000 })
+    await waitForApp(page)
 
     // Scroll into the heaviest act before reading, so a governor has had the
     // chance to act if one is mounted.
@@ -100,15 +106,19 @@ for (const test of CASES) {
         `   ${String(info.acts).padStart(5)}`,
     )
   } catch (error) {
-    console.log(`  ${test.label.padEnd(24)}  failed: ${error.message.split('\n')[0]}`)
+    // A case that did not render is a failure, not an absence of one. Without
+    // this the summary reported success for a page that had no canvas at all.
+    failures += 1
+    console.log(`  ${test.label.padEnd(24)}  FAILED: ${error.message.split('\n')[0]}`)
   }
   await page.close()
 }
 
 await browser.close()
+const total = shortfall + failures
 console.log(
-  shortfall === 0
-    ? '\n  Every case met the 1920x1080 floor.\n'
-    : `\n  ${shortfall} case(s) fell below the 1920x1080 floor.\n`,
+  total === 0
+    ? '\n  Every case rendered, and every applicable case met the 1080p pixel floor.\n'
+    : `\n  ${failures} case(s) failed to render, ${shortfall} fell below the floor.\n`,
 )
-process.exitCode = shortfall === 0 ? 0 : 1
+process.exitCode = total === 0 ? 0 : 1

@@ -16,6 +16,7 @@
 import { chromium } from 'playwright-core'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
+import { waitForApp } from './lib/ready.mjs'
 
 const BASE = 'http://127.0.0.1:5273/'
 const OUT = path.resolve('shots/a11y')
@@ -65,7 +66,7 @@ async function main() {
   page.setDefaultTimeout(120_000)
 
   await page.goto(BASE, { waitUntil: 'load', timeout: 60_000 })
-  await page.waitForSelector('.loader', { state: 'detached', timeout: 90_000 })
+  await waitForApp(page)
 
   const decoder = await browser.newPage()
   const failures = []

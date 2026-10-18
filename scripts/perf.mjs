@@ -19,6 +19,7 @@
  */
 
 import { chromium } from 'playwright-core'
+import { waitForApp } from './lib/ready.mjs'
 
 // Same override as the screenshot harness, so either can point at a preview
 // build, a dev server or the deployed site.
@@ -124,7 +125,7 @@ async function main() {
 
     try {
       await page.goto(BASE + (testCase.query ?? ''), { waitUntil: 'load', timeout: 60_000 })
-      await page.waitForSelector('.loader', { state: 'detached', timeout: 120_000 })
+      await waitForApp(page)
 
       await page.evaluate(
         ({ act, at }) => {

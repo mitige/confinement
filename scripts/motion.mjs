@@ -16,6 +16,7 @@
  */
 
 import { chromium } from 'playwright-core'
+import { waitForApp } from './lib/ready.mjs'
 
 const URL = process.argv[2] || 'http://127.0.0.1:5273/'
 
@@ -27,7 +28,7 @@ const browser = await chromium.launch({
 
 /** Park in the scale act, where the camera is slow and the framing is stable. */
 async function settle(page) {
-  await page.waitForSelector('.loader', { state: 'detached', timeout: 120_000 })
+  await waitForApp(page)
   await page.evaluate(() => {
     const el = document.querySelector('[data-act="scale"]')
     if (!el) return

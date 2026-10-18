@@ -11,6 +11,7 @@
  */
 
 import { chromium } from 'playwright-core'
+import { waitForApp } from './lib/ready.mjs'
 
 const BASE = 'http://127.0.0.1:5273/'
 const ACTS = [
@@ -26,7 +27,7 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 page.setDefaultTimeout(120_000)
 await page.goto(BASE, { waitUntil: 'load', timeout: 60_000 })
-await page.waitForSelector('.loader', { state: 'detached', timeout: 90_000 })
+await waitForApp(page)
 
 let failures = 0
 for (const act of ACTS) {

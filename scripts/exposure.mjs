@@ -13,6 +13,7 @@
  */
 
 import { chromium } from 'playwright-core'
+import { waitForApp } from './lib/ready.mjs'
 
 const ACT = process.argv[2] || 'scale'
 const AT = Number(process.argv[3] ?? 0.62)
@@ -41,7 +42,7 @@ async function capture(browser, query) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
   page.setDefaultTimeout(120_000)
   await page.goto(BASE + query, { waitUntil: 'load', timeout: 60_000 })
-  await page.waitForSelector('.loader', { state: 'detached', timeout: 90_000 })
+  await waitForApp(page)
 
   const geometry = await page.evaluate((id) => {
     const el = document.querySelector(`[data-act="${id}"]`)

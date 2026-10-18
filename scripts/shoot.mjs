@@ -15,6 +15,7 @@
 import { chromium } from 'playwright-core'
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { waitForApp } from './lib/ready.mjs'
 
 const URL = process.env.PREVIEW_URL || 'http://127.0.0.1:5273/'
 const OUT = path.resolve('shots')
@@ -127,7 +128,7 @@ async function main() {
   await page.goto(URL, { waitUntil: 'load', timeout: 60_000 })
 
   // Wait for the preloader to unmount, which only happens once frames are on screen.
-  await page.waitForSelector('.loader', { state: 'detached', timeout: 90_000 })
+  await waitForApp(page)
 
   // Guard against the app crashing before render: 'detached' also matches a
   // selector that never existed, which would otherwise look like success.
