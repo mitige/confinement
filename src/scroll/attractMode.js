@@ -36,22 +36,20 @@ export const ATTRACT = {
   /**
    * Speed in screen heights per second through the 3D acts.
    *
-   * At 1080p this is about 1400 px/s, or one and a third screens per second: a fast
-   * flythrough rather than a drift. The whole timeline crosses in about half a
-   * minute, which is a demo reel pace.
+   * Exactly half the fastest setting tried: about 700 px/s at 1080p, or two thirds of
+   * a screen per second. The whole timeline crosses in about a minute and a half.
    */
-  speedVh: 132,
+  speedVh: 66,
   /**
    * Speed over the text acts, which is deliberately lower.
    *
    * The same reason a film slows over its titles, and the same multiple.
    *
-   * At this pace a 120vh plate crosses in about 1.5 seconds, so the plates are a
-   * flicker during the attract loop rather than something anyone can read. That is
-   * the direct consequence of the requested speed; `textSpeedVh` is the one number
-   * to raise if the words should linger instead.
+   * A 120vh plate crosses in about three seconds — still a flicker rather than a
+   * read, but no longer a blur. `textSpeedVh` is the one number to change if the
+   * words should linger.
    */
-  textSpeedVh: 78,
+  textSpeedVh: 39,
   /** Slowest canvas opacity that still counts as a 3D act. Matches the governor. */
   textActOpacity: 0.2,
   /**
