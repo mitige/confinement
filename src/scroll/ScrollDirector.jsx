@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import Lenis from 'lenis'
 import { TIMELINE, TOTAL_VH, actAtProgress } from '../data/acts.js'
-import { createAttractMode } from './attractMode.js'
+import { ATTRACT, createAttractMode } from './attractMode.js'
 
 /**
  * Owns all scroll state for the document.
@@ -93,7 +93,17 @@ export function ScrollProvider({ children }) {
      * point of that preference is that things stop moving unprompted.
      */
     const autoplayOff = new URLSearchParams(window.location.search).get('autoplay') === 'off'
-    const attract = createAttractMode({ lenis, enabled: !autoplayOff })
+    const attract = createAttractMode({
+      lenis,
+      enabled: !autoplayOff,
+      // The timeline knows which act is on screen; the attract mode only needs to
+      // know whether it is a 3D act or a text plate.
+      getSpeedVh: () => {
+        const act = TIMELINE[store.actIndex]
+        const isTextAct = (act?.canvasOpacity ?? 1) < ATTRACT.textActOpacity
+        return isTextAct ? ATTRACT.textSpeedVh : ATTRACT.speedVh
+      },
+    })
 
     let previous = 0
     const tick = (time) => {

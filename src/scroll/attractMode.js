@@ -34,20 +34,43 @@ export const ATTRACT = {
    */
   rampLambda: 1.05,
   /**
-   * Speed in screen heights per second. At 1080p this is about 97 px/s: a 120vh
-   * text plate takes roughly 13 seconds to cross, and the whole timeline about
-   * seven minutes.
+   * Speed in screen heights per second through the 3D acts. At 1080p this is about
+   * 240 px/s.
    */
-  speedVh: 9,
+  speedVh: 22,
+  /**
+   * Speed over the text acts, which is deliberately lower.
+   *
+   * The same reason a film slows over its titles: a plate is meant to be read, and
+   * flying through it at machine speed makes the words useless. At 1080p this is
+   * about 140 px/s, which crosses a 120vh plate in nine seconds and leaves its
+   * readable window on screen for about five.
+   */
+  textSpeedVh: 13,
+  /** Slowest canvas opacity that still counts as a 3D act. Matches the governor. */
+  textActOpacity: 0.2,
+  /**
+   * How quickly the speed adapts when the timeline changes register between acts.
+   * Damped rather than switched, so it reads as a camera operator easing off rather
+   * than as a gear change.
+   */
+  speedLambda: 1.5,
   /** Inputs that count as "the user is here". */
   activityEvents: ['mousemove', 'pointerdown', 'pointermove', 'wheel', 'touchstart', 'touchmove', 'keydown'],
 }
 
-export function createAttractMode({ lenis, enabled = true }) {
+export function createAttractMode({ lenis, enabled = true, getSpeedVh }) {
   let idle = 0
   let engaged = 0
+  let speed = ATTRACT.speedVh
   let finished = false
   let blurred = false
+
+  /** Speed for the current act, if the caller knows one. */
+  function targetSpeed() {
+    const wanted = getSpeedVh?.()
+    return Number.isFinite(wanted) ? wanted : ATTRACT.speedVh
+  }
 
   /** Stop instantly: from here on, no further position is written. */
   function halt() {
@@ -109,9 +132,11 @@ export function createAttractMode({ lenis, enabled = true }) {
 
       // Spin up gently, then hold a constant speed.
       engaged = damp(engaged, 1, ATTRACT.rampLambda, dt)
+      // Ease between the 3D pace and the reading pace rather than switching.
+      speed = damp(speed, targetSpeed(), ATTRACT.speedLambda, dt)
 
       const screenHeight = window.innerHeight
-      const step = (screenHeight / 100) * ATTRACT.speedVh * engaged * dt
+      const step = (screenHeight / 100) * speed * engaged * dt
       if (step <= 0) return
 
       const next = Math.min(lenis.animatedScroll + step, lenis.limit)
@@ -123,6 +148,11 @@ export function createAttractMode({ lenis, enabled = true }) {
     /** 0 when idle-still, 1 at full auto speed. For tests and diagnostics. */
     get engagement() {
       return engaged
+    },
+
+    /** Current speed in screen heights per second. For tests and diagnostics. */
+    get speedVh() {
+      return speed
     },
 
     destroy() {
