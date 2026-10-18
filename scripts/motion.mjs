@@ -16,7 +16,7 @@
  */
 
 import { chromium } from 'playwright-core'
-import { waitForApp } from './lib/ready.mjs'
+import { harnessUrl, waitForApp } from './lib/ready.mjs'
 
 const URL = process.argv[2] || 'http://127.0.0.1:5273/'
 
@@ -58,7 +58,7 @@ async function run(label, { reduced = false, query = '' } = {}) {
     reducedMotion: reduced ? 'reduce' : 'no-preference',
   })
   page.setDefaultTimeout(120_000)
-  await page.goto(URL + query, { waitUntil: 'load', timeout: 60_000 })
+  await page.goto(harnessUrl(URL, query), { waitUntil: 'load', timeout: 60_000 })
   await settle(page)
 
   const first = await readCamera(page)

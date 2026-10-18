@@ -15,7 +15,7 @@
 import { chromium } from 'playwright-core'
 import { mkdir, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { waitForApp } from './lib/ready.mjs'
+import { harnessUrl, waitForApp } from './lib/ready.mjs'
 
 const URL = process.env.PREVIEW_URL || 'http://127.0.0.1:5273/'
 const OUT = path.resolve('shots')
@@ -125,7 +125,7 @@ async function main() {
     problems.push(`[pageerror] ${error.message}`)
   })
 
-  await page.goto(URL, { waitUntil: 'load', timeout: 60_000 })
+  await page.goto(harnessUrl(URL), { waitUntil: 'load', timeout: 60_000 })
 
   // Wait for the preloader to unmount, which only happens once frames are on screen.
   await waitForApp(page)

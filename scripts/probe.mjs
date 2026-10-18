@@ -10,7 +10,7 @@
  */
 
 import { chromium } from 'playwright-core'
-import { waitForApp } from './lib/ready.mjs'
+import { harnessUrl, waitForApp } from './lib/ready.mjs'
 
 const CANDIDATES = [
   {
@@ -81,7 +81,7 @@ async function measureFps(args, label) {
   })
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } })
-    await page.goto('http://127.0.0.1:5273/', { waitUntil: 'load', timeout: 60_000 })
+    await page.goto(harnessUrl('http://127.0.0.1:5273/'), { waitUntil: 'load', timeout: 60_000 })
     await waitForApp(page)
 
     // Sample the app's own rAF loop, which is what the camera rides on.

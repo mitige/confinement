@@ -12,7 +12,7 @@
  */
 
 import { chromium } from 'playwright-core'
-import { waitForApp } from '../scripts/lib/ready.mjs'
+import { harnessUrl, waitForApp } from '../scripts/lib/ready.mjs'
 
 const URL = process.argv[2] || 'https://mitige.github.io/confinement/'
 const FILTER = process.argv[3] || null
@@ -65,7 +65,7 @@ for (const test of CASES.filter((c) => !FILTER || c.label.includes(FILTER))) {
         // `test.query` is undefined for the default cases; concatenating it directly
     // produced ".../confinement/undefined", a 404, and five failures that looked
     // exactly like a broken default code path on the deployed site.
-    await page.goto(URL + (test.query ?? ''), { waitUntil: 'load', timeout: 60_000 })
+    await page.goto(harnessUrl(URL, test.query ?? ''), { waitUntil: 'load', timeout: 60_000 })
     await waitForApp(page)
 
     // Scroll into the heaviest act before reading, so a governor has had the

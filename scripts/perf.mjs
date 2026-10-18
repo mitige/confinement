@@ -19,7 +19,7 @@
  */
 
 import { chromium } from 'playwright-core'
-import { waitForApp } from './lib/ready.mjs'
+import { harnessUrl, waitForApp } from './lib/ready.mjs'
 
 // Same override as the screenshot harness, so either can point at a preview
 // build, a dev server or the deployed site.
@@ -126,7 +126,7 @@ async function main() {
     page.setDefaultTimeout(180_000)
 
     try {
-      await page.goto(BASE + (testCase.query ?? ''), { waitUntil: 'load', timeout: 60_000 })
+      await page.goto(harnessUrl(BASE, testCase.query ?? ''), { waitUntil: 'load', timeout: 60_000 })
       await waitForApp(page)
 
       await page.evaluate(

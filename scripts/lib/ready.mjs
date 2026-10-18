@@ -25,6 +25,21 @@ export async function waitForApp(page, { timeout = 120_000 } = {}) {
   return acts
 }
 
+/**
+ * Append the parameters a harness needs to be deterministic.
+ *
+ * The attract mode starts moving the page after five seconds of no mouse
+ * movement, which is exactly what a screenshot harness does — it drove the scroll
+ * out from under every measurement until this was added.
+ */
+export function harnessUrl(base, query = '') {
+  const url = new URL(base)
+  const params = new URLSearchParams(query.startsWith('?') ? query.slice(1) : query)
+  params.set('autoplay', 'off')
+  for (const [key, value] of params) url.searchParams.set(key, value)
+  return url.toString()
+}
+
 /** Camera and renderer handles, exposed only by the dev build. */
 export async function waitForRenderer(page, { timeout = 120_000 } = {}) {
   await page.waitForFunction(() => Boolean(window.__r3f?.camera), { timeout })

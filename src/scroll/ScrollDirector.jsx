@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import Lenis from 'lenis'
 import { TIMELINE, TOTAL_VH, actAtProgress } from '../data/acts.js'
+import { createAttractMode } from './attractMode.js'
 
 /**
  * Owns all scroll state for the document.
@@ -86,7 +87,22 @@ export function ScrollProvider({ children }) {
     }
     lenis.on('scroll', onScroll)
 
+    /*
+     * The page starts moving on its own once nobody has touched it for a while.
+     * `?autoplay=off` disables it; reduced motion never enables it, since the whole
+     * point of that preference is that things stop moving unprompted.
+     */
+    const autoplayOff = new URLSearchParams(window.location.search).get('autoplay') === 'off'
+    const attract = createAttractMode({ lenis, enabled: !autoplayOff })
+
+    let previous = 0
     const tick = (time) => {
+      // Guard the first frame and any tab-switch gap: a huge dt would make the
+      // attract mode jump.
+      const dt = previous ? Math.min((time - previous) / 1000, 0.1) : 0
+      previous = time
+
+      attract.update(dt)
       lenis.raf(time)
       publish(store, setActiveIndex)
       raf = requestAnimationFrame(tick)
@@ -100,6 +116,7 @@ export function ScrollProvider({ children }) {
       window.__confinement = {
         lenis,
         store,
+        attract,
         scrollToProgress(p) {
           const max = document.documentElement.scrollHeight - window.innerHeight
           lenis.scrollTo(max * p, { immediate: true })
@@ -109,6 +126,7 @@ export function ScrollProvider({ children }) {
 
     return () => {
       cancelAnimationFrame(raf)
+      attract.destroy()
       lenis.off('scroll', onScroll)
       lenis.destroy()
       store.velocity = 0

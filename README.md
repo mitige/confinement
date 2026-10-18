@@ -184,6 +184,20 @@ and no act exceeds the three-ghosted-layer budget.
 
 ## Performance
 
+### Antialiasing
+
+MSAA turned out to be the single most expensive thing in the pipeline — far more
+than the scene itself. Measured at 1920x1080, switching it off took the heaviest act
+from 6.9 to 31.2 fps, and dropping from four samples to two changed nothing, so it is
+a bandwidth cost rather than a sample-count cost. It is a half-float buffer at two
+megapixels, and multisampling it four times is simply not affordable on integrated
+graphics.
+
+The composer now multisamples zero times and a single SMAA pass does the work
+instead: about 12% over no antialiasing at all, against MSAA's 350%, and it cleans
+the post-processed image rather than only the geometry. `?aa=off|fxaa|smaa` and
+`?msaa=N` remain for comparison.
+
 ### Resolution and smoothness
 
 **The default is full resolution with no adaptation.** Nothing reduces the render

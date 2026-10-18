@@ -17,7 +17,7 @@ import { chromium } from 'playwright-core'
 import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { readFile } from 'node:fs/promises'
-import { waitForApp } from './lib/ready.mjs'
+import { harnessUrl, waitForApp } from './lib/ready.mjs'
 
 const url = process.argv[2]
 const name = process.argv[3] || 'inspect'
@@ -43,7 +43,7 @@ const problems = []
 page.on('pageerror', (e) => problems.push(`[pageerror] ${e.message}`))
 page.on('console', (m) => { if (m.type() === 'error') problems.push(`[console] ${m.text()}`) })
 
-await page.goto(url, { waitUntil: 'load', timeout: 60_000 })
+await page.goto(harnessUrl(url), { waitUntil: 'load', timeout: 60_000 })
 await waitForApp(page)
 
 // Put the machine into the requested act's state, then let the fades settle.
