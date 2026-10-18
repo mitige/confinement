@@ -41,6 +41,13 @@ export const BUDGET = {
   windowSeconds: 0.5,
   /** How long to stay above target before spending pixels again. */
   climbSeconds: 1.6,
+  /**
+   * Floor for the default, gentle mode. A 28% linear reduction is 0.52x the pixels
+   * — roughly 1.8x the frame rate — and is close to invisible under bloom and film
+   * grain, where the full range down to 0.5 is not.
+   */
+  gentleMinScale: 0.72,
+  /** Floor when adaptation is explicitly asked for in full. */
   minScale: 0.5,
   maxScale: 1,
   stepDown: 0.1,
@@ -62,7 +69,7 @@ export const BUDGET = {
 /** Quantise so the image changes in visible steps rather than continuously. */
 const quantise = (value) => Math.round(value * 10) / 10
 
-export function PerformanceGovernor({ tier, onScaleChange, onDowngrade }) {
+export function PerformanceGovernor({ tier, minScale = BUDGET.gentleMinScale, onScaleChange, onDowngrade }) {
   const store = useDirectorStore()
 
   const state = useRef({
@@ -95,10 +102,13 @@ export function PerformanceGovernor({ tier, onScaleChange, onDowngrade }) {
 
     if (fps < BUDGET.lowerFps) {
       s.climbElapsed = 0
-      if (s.target > BUDGET.minScale) {
-        s.target = Math.max(BUDGET.minScale, s.target - BUDGET.stepDown)
+      if (s.target > minScale) {
+        s.target = Math.max(minScale, s.target - BUDGET.stepDown)
       } else if (
-        fps < BUDGET.tierFloorFps &&
+        // Only shed features once the floor for THIS mode is reached, not the
+        // global one, or gentle mode would downgrade the tier while barely
+        // having touched resolution.
+        fps < BUDGET.tierFloorFps * (minScale / BUDGET.gentleMinScale) &&
         tier !== 'low' &&
         s.elapsedTotal - s.lastDowngrade > BUDGET.downgradeCooldownSeconds
       ) {

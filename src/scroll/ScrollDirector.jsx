@@ -57,15 +57,28 @@ export function ScrollProvider({ children }) {
       return () => cancelAnimationFrame(raf)
     }
 
+    /*
+     * Scroll smoothing.
+     *
+     * Tuned by feel against the two failure modes at either extreme. Too short a
+     * duration and the camera jerks with each wheel tick, because a notched mouse
+     * wheel delivers scroll in steps. Too long and it feels detached from the hand
+     * — the camera keeps gliding after you have stopped asking it to.
+     *
+     * The easing is a saturating ease-out with a long tail: it leaves quickly and
+     * arrives slowly, which is what makes a long document feel like it has weight
+     * rather than friction. `wheelMultiplier` sits below 1 so that one notch is a
+     * short move and the material takes several to cross, which is where the
+     * unhurried quality of the piece comes from.
+     */
     lenis = new Lenis({
       autoRaf: false,
-      duration: 1.15,
-      // Long, decelerating ease. Apple-like: never springy, never bouncy.
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      duration: 1.45,
+      easing: (t) => 1 - Math.pow(1 - t, 3.6),
       smoothWheel: true,
-      wheelMultiplier: 0.9,
-      touchMultiplier: 1.4,
-      lerp: undefined,
+      wheelMultiplier: 0.78,
+      touchMultiplier: 1.7,
+      syncTouch: false,
     })
 
     const onScroll = ({ velocity }) => {

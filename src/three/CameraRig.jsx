@@ -8,17 +8,48 @@ import { clamp, damp, easeInOutCubic, invLerp } from '../lib/math.js'
 /**
  * Drives the camera from the act timeline.
  *
- * Each act declares a small set of camera keys. They are threaded onto a
- * Catmull-Rom spline so the camera swings through arcs rather than snapping
- * between points, and the parameter along that spline is advanced linearly —
- * because a spline is already C1 continuous, linear parameterisation keeps the
- * motion smooth without the velocity collapsing to zero at every key. Easing per
- * segment would make the camera stop dead at each keyframe.
+ * The rig is built in three layers, and keeping them separate is what makes the
+ * motion read as authored rather than as a value being interpolated:
  *
- * On top of that the resulting position is critically damped, which absorbs the
- * velocity discontinuities at act boundaries and gives the whole piece its
- * weighted, physical feel.
+ *  1. **Choreography.** Each act declares camera keys, threaded onto a Catmull-Rom
+ *     spline so the camera swings through arcs instead of snapping between points.
+ *     The parameter along that spline advances *linearly*, because a spline is
+ *     already C1 continuous and easing every segment would make the camera stop
+ *     dead at each keyframe. Only the field of view eases: a zoom that starts and
+ *     stops abruptly is far more noticeable than a dolly that does.
+ *
+ *  2. **Life.** A slow, incommensurate drift and a pointer parallax are added on
+ *     top. Both are small — under a metre on a 30 m machine — but they are the
+ *     difference between a camera and a slideshow: the framing is never perfectly
+ *     still, and it answers the cursor. The drift periods are deliberately not
+ *     whole multiples of each other, so the movement never visibly repeats.
+ *
+ *  3. **Weight.** The result is damped before it reaches the camera, which absorbs
+ *     the velocity discontinuities at act boundaries and gives the piece a
+ *     physical feel. A velocity-driven field-of-view accent adds a sense of speed
+ *     and settles on its own. The pointer adds a fraction of a degree of roll,
+ *     applied through the camera's up vector so it cannot fight `lookAt`.
+ *
+ * All of layer 2 and the roll are disabled under `prefers-reduced-motion`, which
+ * pins the camera to the choreography alone.
  */
+
+/** How far the pointer can push the camera, in metres. */
+const PARALLAX_POSITION = 0.85
+const PARALLAX_TARGET = 0.3
+/** Degrees of roll at full horizontal deflection. */
+const PARALLAX_ROLL = 0.85
+/** Idle drift, in metres and seconds. Mutually prime periods so it never loops. */
+const DRIFT = [
+  { axis: 'x', amplitude: 0.34, period: 23.7, phase: 0 },
+  { axis: 'y', amplitude: 0.22, period: 37.3, phase: 1.9 },
+  { axis: 'z', amplitude: 0.28, period: 29.1, phase: 3.4 },
+]
+/** Degrees added at full scroll speed. */
+const SPEED_FOV = 1.5
+/** The camera's reference up, used to build the view basis. */
+const WORLD_UP = new THREE.Vector3(0, 1, 0)
+
 /**
  * A fixed camera override, for inspecting a piece of the machine without hunting
  * for a scroll position that happens to frame it.
@@ -55,21 +86,33 @@ export function CameraRig({ reducedMotion = false }) {
     current: new THREE.Vector3(0, 21, 92),
     lookAt: new THREE.Vector3(0, 15, 0),
     fov: 30,
+    /** Smoothed parallax and speed accents. */
+    parallax: new THREE.Vector2(),
+    roll: 0,
+    speedFov: 0,
+    elapsed: 0,
     initialised: false,
   })
 
   const scratch = useRef({
     splinePosition: new THREE.Vector3(),
     splineTarget: new THREE.Vector3(),
+    drift: new THREE.Vector3(),
+    forward: new THREE.Vector3(),
+    right: new THREE.Vector3(),
+    up: new THREE.Vector3(),
   })
 
-  useFrame((_, delta) => {
+  useFrame((frameState, delta) => {
     const dt = Math.min(delta, 0.05)
+    const s = state.current
+    s.elapsed += dt
 
-    // Inspection mode: hold the requested framing and ignore the timeline.
+    // Inspection mode: hold the requested framing and ignore everything else.
     if (override) {
       camera.position.set(...override.position)
       camera.lookAt(...override.target)
+      camera.up.set(0, 1, 0)
       if (Math.abs(camera.fov - override.fov) > 0.002) {
         camera.fov = override.fov
         camera.updateProjectionMatrix()
@@ -78,7 +121,6 @@ export function CameraRig({ reducedMotion = false }) {
     }
 
     const act = TIMELINE[store.actIndex]
-    const s = state.current
     const keys = act.cam
 
     // Rebuild the splines only when the act changes.
@@ -112,13 +154,70 @@ export function CameraRig({ reducedMotion = false }) {
     s.position.getPoint(t, scratch.current.splinePosition)
     s.target.getPoint(t, scratch.current.splineTarget)
 
-    const targetFov =
+    // --- layer 2: life -------------------------------------------------------
+    if (!reducedMotion) {
+      const { drift, forward, right, up } = scratch.current
+
+      /*
+       * Both offsets are expressed in the camera's own frame, not in world axes.
+       * Offsetting world X would shove the camera sideways relative to the room,
+       * which reads as the framing sliding when the camera faces along Z and as
+       * nothing at all when it faces along X. Working from the view basis means a
+       * given pointer deflection moves the framing by the same amount on screen
+       * from every angle, which is the whole point of a parallax.
+       */
+      forward.subVectors(scratch.current.splineTarget, scratch.current.splinePosition).normalize()
+      right.crossVectors(forward, WORLD_UP).normalize()
+      up.crossVectors(right, forward).normalize()
+
+      drift.set(0, 0, 0)
+      for (const wave of DRIFT) {
+        const value =
+          Math.sin((s.elapsed / wave.period) * Math.PI * 2 + wave.phase) * wave.amplitude
+        drift[wave.axis] += value
+      }
+
+      /*
+       * The pointer is smoothed rather than followed directly: a parallax that
+       * tracks the cursor exactly feels attached to the mouse, while one that
+       * trails it feels like the camera has mass.
+       */
+      s.parallax.x = damp(s.parallax.x, frameState.pointer.x, 2.2, dt)
+      s.parallax.y = damp(s.parallax.y, frameState.pointer.y, 2.2, dt)
+
+      const lateral = drift.x + s.parallax.x * PARALLAX_POSITION
+      const vertical = drift.y + s.parallax.y * PARALLAX_POSITION * 0.6
+      const along = drift.z
+
+      scratch.current.splinePosition.addScaledVector(right, lateral)
+      scratch.current.splinePosition.addScaledVector(up, vertical)
+      scratch.current.splinePosition.addScaledVector(forward, along)
+
+      // The aim point follows a fraction of the same motion, which keeps the
+      // subject roughly centred while the framing breathes around it.
+      scratch.current.splineTarget.addScaledVector(right, s.parallax.x * PARALLAX_TARGET)
+      scratch.current.splineTarget.addScaledVector(
+        up,
+        s.parallax.y * PARALLAX_TARGET * 0.6,
+      )
+    }
+
+    const baseFov =
       s.fovs.length > 1
         ? s.fovs[segment] +
           (s.fovs[segment + 1] - s.fovs[segment]) * easeInOutCubic(local)
         : s.fovs[0]
 
-    const lambda = reducedMotion ? 22 : 3.6
+    /*
+     * Scrolling fast opens the lens very slightly. It reads as speed without
+     * anything as crude as motion blur, and it settles back on its own.
+     */
+    const speed = clamp(Math.abs(store.velocity) / 55, 0, 1)
+    s.speedFov = damp(s.speedFov, reducedMotion ? 0 : speed * SPEED_FOV, 3, dt)
+    const targetFov = baseFov + s.speedFov
+
+    // --- layer 3: weight -----------------------------------------------------
+    const lambda = reducedMotion ? 22 : 5
 
     if (!s.initialised) {
       // Land exactly on the opening frame rather than flying in from the origin.
@@ -140,7 +239,15 @@ export function CameraRig({ reducedMotion = false }) {
       s.fov = damp(s.fov, targetFov, lambda, dt)
     }
 
+    // Roll through the up vector rather than by rotating after lookAt, so it
+    // cannot fight the orientation lookAt just computed.
+    const targetRoll = reducedMotion
+      ? 0
+      : -s.parallax.x * (PARALLAX_ROLL * Math.PI) / 180
+    s.roll = damp(s.roll, targetRoll, 3, dt)
+
     camera.position.copy(s.current)
+    camera.up.set(Math.sin(s.roll), Math.cos(s.roll), 0)
     camera.lookAt(s.lookAt)
 
     if (Math.abs(camera.fov - s.fov) > 0.002) {

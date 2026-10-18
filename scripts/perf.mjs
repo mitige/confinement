@@ -26,11 +26,12 @@ const HEAVY_ACT = 'ignition'
 const HEAVY_AT = 0.68
 
 const CASES = [
-  { label: '1440x900  governor OFF', width: 1440, height: 900, dpr: 1, query: '?res=1' },
-  { label: '1440x900  governor ON', width: 1440, height: 900, dpr: 1 },
-  { label: '1440x900  dpr 2  governor ON', width: 1440, height: 900, dpr: 2 },
-  { label: '1920x1080 governor ON', width: 1920, height: 1080, dpr: 1 },
-  { label: ' 390x844  dpr 3  governor ON', width: 390, height: 844, dpr: 3, mobile: true },
+  { label: '1440x900  static (no adapt)', width: 1440, height: 900, dpr: 1, query: '?static=1' },
+  { label: '1440x900  gentle (default)', width: 1440, height: 900, dpr: 1 },
+  { label: '1440x900  adaptive=1 (full)', width: 1440, height: 900, dpr: 1, query: '?adaptive=1' },
+  { label: '1440x900  dpr 2  gentle', width: 1440, height: 900, dpr: 2 },
+  { label: '1920x1080 gentle', width: 1920, height: 1080, dpr: 1 },
+  { label: ' 390x844  dpr 3  gentle', width: 390, height: 844, dpr: 3, mobile: true },
   { label: '1440x900  reduced-motion', width: 1440, height: 900, dpr: 1, reduced: true },
 ]
 
@@ -44,18 +45,48 @@ const BASE_ARGS = [
   '--force-color-profile=srgb',
 ]
 
-/** Average the app's rAF loop over `ms`. */
+/**
+ * Sample the app's rAF loop and report the shape of the frame time, not just its
+ * mean.
+ *
+ * Mean frame rate hides the thing that actually reads as "not smooth": a handful
+ * of long frames. A run averaging 55 fps with a 2% tail of 90 ms hitches looks far
+ * worse than a steady 45 fps. So this reports the median, the 95th and 99th
+ * percentiles, the worst single frame, and p95 over median. A steady 30 fps lock is
+ * smooth; a run averaging 40 fps while alternating 20 and 80 ms frames is not, and
+ * only the distribution shows the difference. A p95/median of 1.00 means perfectly
+ * even pacing.
+ */
 const measure = (page, ms) =>
   page.evaluate(
     (duration) =>
       new Promise((resolve) => {
-        let frames = 0
-        const start = performance.now()
-        const tick = () => {
-          frames += 1
-          const elapsed = performance.now() - start
-          if (elapsed > duration) resolve((frames / elapsed) * 1000)
-          else requestAnimationFrame(tick)
+        const times = []
+        let last = performance.now()
+        const start = last
+        const tick = (now) => {
+          times.push(now - last)
+          last = now
+          if (now - start > duration) {
+            // Drop the first sample: it spans the setup between frames.
+            const deltas = times.slice(1).sort((a, b) => a - b)
+            const at = (q) => deltas[Math.min(deltas.length - 1, Math.floor(deltas.length * q))]
+            const total = deltas.reduce((sum, d) => sum + d, 0)
+            resolve({
+              fps: (deltas.length / total) * 1000,
+              median: at(0.5),
+              p95: at(0.95),
+              p99: at(0.99),
+              worst: deltas[deltas.length - 1],
+              /* p95 over median: 1.00 is a perfectly even lock, 1.5 means every
+                 tenth frame runs half again as long. This is the number that
+                 actually correlates with the motion reading as smooth. */
+              evenness: at(0.95) / at(0.5),
+              frames: deltas.length,
+            })
+          } else {
+            requestAnimationFrame(tick)
+          }
         }
         requestAnimationFrame(tick)
       }),
@@ -69,9 +100,9 @@ async function main() {
   })
 
   console.log(
-    '\n  case                              fps   final dpr   resolution   geometries textures',
+    '\n  case                              fps   median    p95    p99   worst  p95/med   dpr',
   )
-  console.log('  ' + '-'.repeat(86))
+  console.log('  ' + '-'.repeat(96))
 
   for (const testCase of CASES) {
     const context = await browser.newContext({
@@ -94,7 +125,14 @@ async function main() {
       await page.evaluate(
         ({ act, at }) => {
           const el = document.querySelector(`[data-act="${act}"]`)
-          if (el) window.__confinement?.lenis.scrollTo(el.offsetTop + el.offsetHeight * at, { immediate: true })
+          if (!el) return
+          const y = el.offsetTop + el.offsetHeight * at
+          // Drive Lenis when it exists, and fall back to the native scroll
+          // otherwise: the reduced-motion path has no Lenis instance, and without
+          // this the case silently measured the opening act instead of the
+          // heaviest one.
+          if (window.__confinement?.lenis) window.__confinement.lenis.scrollTo(y, { immediate: true })
+          else window.scrollTo(0, y)
         },
         { act: HEAVY_ACT, at: HEAVY_AT },
       )
@@ -105,7 +143,7 @@ async function main() {
        */
       await page.waitForTimeout(10_000)
 
-      const fps = await measure(page, 5000)
+      const timing = await measure(page, 6000)
       const info = await page.evaluate(() => {
         const renderer = window.__r3f?.gl
         if (!renderer) return null
@@ -120,11 +158,13 @@ async function main() {
       })
 
       console.log(
-        `  ${testCase.label.padEnd(34)}${fps.toFixed(1).padStart(5)}` +
-          `   ${(info?.dpr ?? 0).toFixed(2).padStart(9)}` +
-          `   ${`${info?.width}x${info?.height}`.padStart(11)}` +
-          `   ${String(info?.geometries ?? '-').padStart(10)}` +
-          `   ${String(info?.textures ?? '-').padStart(8)}`,
+        `  ${testCase.label.padEnd(34)}${timing.fps.toFixed(1).padStart(5)}` +
+          `  ${timing.median.toFixed(1).padStart(6)}` +
+          `  ${timing.p95.toFixed(1).padStart(5)}` +
+          `  ${timing.p99.toFixed(1).padStart(5)}` +
+          `  ${timing.worst.toFixed(0).padStart(6)}` +
+          `  ${timing.evenness.toFixed(2).padStart(5)}` +
+          `  ${(info?.dpr ?? 0).toFixed(2).padStart(4)}`,
       )
     } catch (error) {
       console.log(`  ${testCase.label.padEnd(34)}  failed: ${error.message.split('\n')[0]}`)

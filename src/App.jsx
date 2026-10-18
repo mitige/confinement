@@ -64,8 +64,18 @@ function debugParams() {
     forcedRig: params.get('rig') || null,
     /** Pins the render scale, 1 means native. */
     forcedScale: params.has('res') ? Number(params.get('res')) : null,
-    /** Off by default: resolution is spent only when explicitly asked for. */
-    adaptive: params.get('adaptive') === '1',
+    /**
+     * How much resolution the governor may spend.
+     *
+     *   gentle (default)  at most 28% linear, which is near invisible
+     *   full  ?adaptive=1   down to half, for a machine that needs it
+     *   none  ?static=1     nothing, for absolute maximum sharpness
+     */
+    scaleMode: params.get('static') === '1'
+      ? 'none'
+      : params.get('adaptive') === '1'
+        ? 'full'
+        : 'gentle',
     /** Anything other than high is an explicit request to spend features. */
     tier: tier === 'medium' || tier === 'low' ? tier : 'high',
   }
@@ -89,7 +99,7 @@ function Experience() {
     if (debug.tier !== 'high') return debug.tier
     // Otherwise: a startup guess is only worth making when the governor is there
     // to correct it. Without the governor, maximum is the answer.
-    return debug.adaptive ? detectQuality() : 'high'
+    return debug.scaleMode === 'none' ? 'high' : detectQuality()
   })
 
   /*
@@ -129,7 +139,10 @@ function Experience() {
           flat
           dpr={
             debug.forcedScale ??
-            Math.max(MIN_DPR, dprFor(quality) * (debug.adaptive ? renderScale : 1))
+            Math.max(
+              MIN_DPR,
+              dprFor(quality) * (debug.scaleMode === 'none' ? 1 : renderScale),
+            )
           }
           camera={{ position: [0, 21, 92], fov: 30, near: 0.1, far: 900 }}
           gl={{
@@ -150,7 +163,7 @@ function Experience() {
             Mounted only on request. With it absent the renderer always runs at the
             full device pixel ratio and nothing ever changes resolution mid-scroll.
           */}
-          {debug.adaptive && (
+          {debug.scaleMode !== 'none' && (
             <PerformanceGovernor
               tier={quality}
               onScaleChange={setRenderScale}

@@ -139,7 +139,10 @@ This model cannot view images, so the review loop is measurement instead of eyeb
   to punch in and out of its own wall. The rule asserted is general: no two coaxial cylinders may
   share a radius while overlapping in height.
 - `npm run probe` — reports which GL backend headless Chrome reaches, and the frame rate.
-- `npm run perf` — frame rate, settled device pixel ratio and GPU resource counts per resolution.
+- `npm run perf` — frame rate, frame-time percentiles, p95/median, worst frame and settled device
+  pixel ratio, per resolution and per adaptation mode.
+- `node scripts/motion.mjs` — verifies the camera's drift and parallax exist, lie on the view axes,
+  and switch off under reduced motion.
 - `node scripts/click-audit.mjs` — for each act, asks the document what is actually under five
   points in the viewport. Every 2D section fills the screen and its links set `pointer-events:
   auto`, which an ancestor cannot override, so an invisible section would otherwise swallow every
@@ -181,24 +184,30 @@ and no act exceeds the three-ghosted-layer budget.
 
 ## Performance
 
-### Default: maximum quality
+### Resolution and smoothness
 
-The deployed site runs at **full resolution and the top feature tier by default** —
-native device pixel ratio up to 2, bloom, vignette, MSAA. Nothing changes resolution while you
-scroll. This is a deliberate trade against smoothness: a portfolio that looks soft by default is a
-worse failure than one that occasionally drops a frame.
+These pull against each other, so the default is neither extreme. Measured on a
+2-compute-unit integrated GPU in the heaviest act at 1440×900:
 
-If it does not hold up on a given machine, the adaptation is one query parameter away:
+| mode | fps | median frame | p95/median | render scale |
+|---|---|---|---|---|
+| `?static=1` — no adaptation | 16–18 | 50–67 ms | 1.25 | 1.00 |
+| **default — gentle** | **35–40** | **17–33 ms** | **1.00** | 0.70 |
+| `?adaptive=1` — full range | 34–39 | 33 ms | 1.01 | 0.70 |
 
-| | |
-|---|---|
-| `?adaptive=1` | let the render resolution fall, targeting 50–58 fps |
-| `?quality=medium` | cap the feature tier: no MSAA, cheaper bloom |
-| `?res=0.7` | pin an exact render scale |
+The interesting column is the last but one. A run that averages 40 fps while
+alternating 20 and 80 ms frames looks far worse than a steady 30 fps lock, and only
+the distribution shows the difference — which is why `npm run perf` reports
+percentiles rather than a frame rate. Both adaptive modes land on a stable lock;
+the static mode oscillates between two and four vsync intervals.
+
+The default spends at most 30% of linear resolution, which is 0.49× the pixels and
+roughly 1.8× the frame rate. That is close to invisible under bloom and film grain.
+The full range goes to half, for a machine that needs it.
 
 ### The adaptive path
 
-When switched on, the frame rate adapts. Resolution is spent first, because the cost of this scene is dominated by
+Adaptation spends resolution first, because the cost of this scene is dominated by
 fragment work — full-screen ghosted layers plus the additive plasma shader — and because losing
 sharpness is far less noticeable than losing the glow. Only when resolution has bottomed out does
 the governor shed bloom, vignette and MSAA. Because the lever is the canvas, the typography is
