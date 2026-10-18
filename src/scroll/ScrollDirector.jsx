@@ -28,6 +28,9 @@ export function ScrollProvider({ children }) {
     local: 0,
     actIndex: 0,
     velocity: 0,
+    /** Scroll speed in pixels per second, from any source. */
+    scrollSpeed: 0,
+    lastScrollY: undefined,
     /** Act whose reveal state the 2D layer should currently show, or null. */
     subscribers: new Set(),
   })
@@ -50,11 +53,14 @@ export function ScrollProvider({ children }) {
 
     // Reduced motion: native scrolling, no interpolation, no Lenis.
     if (reduced) {
-      const tick = () => {
-        publish(store, setActiveIndex)
+      let previousReduced = 0
+      const tick = (time) => {
+        const dt = previousReduced ? Math.min((time - previousReduced) / 1000, 0.1) : 0
+        previousReduced = time
+        publish(store, setActiveIndex, dt)
         raf = requestAnimationFrame(tick)
       }
-      tick()
+      tick(performance.now())
       return () => cancelAnimationFrame(raf)
     }
 
@@ -114,7 +120,7 @@ export function ScrollProvider({ children }) {
 
       attract.update(dt)
       lenis.raf(time)
-      publish(store, setActiveIndex)
+      publish(store, setActiveIndex, dt)
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
@@ -152,11 +158,24 @@ export function ScrollProvider({ children }) {
   return <DirectorContext.Provider value={value}>{children}</DirectorContext.Provider>
 }
 
-/** Recompute the refs and flush subscribers. Called once per frame. */
-function publish(store, setActiveIndex) {
+/**
+ * Recompute the refs and flush subscribers. Called once per frame.
+ *
+ * The scroll speed is measured here rather than read from Lenis, because Lenis does
+ * not report a velocity for positions written directly — which is exactly what the
+ * attract mode does. Deriving it from the positions themselves means the camera can
+ * adapt to any source of motion: the wheel, a flick, or the auto-dolly.
+ */
+function publish(store, setActiveIndex, dt = 0) {
   const doc = document.documentElement
   const max = doc.scrollHeight - window.innerHeight
-  const progress = max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0
+  const scrollY = window.scrollY
+  const progress = max > 0 ? Math.min(Math.max(scrollY / max, 0), 1) : 0
+
+  if (dt > 0 && store.lastScrollY !== undefined) {
+    store.scrollSpeed = (scrollY - store.lastScrollY) / dt
+  }
+  store.lastScrollY = scrollY
 
   store.progress = progress
 

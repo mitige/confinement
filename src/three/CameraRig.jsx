@@ -212,12 +212,27 @@ export function CameraRig({ reducedMotion = false }) {
      * Scrolling fast opens the lens very slightly. It reads as speed without
      * anything as crude as motion blur, and it settles back on its own.
      */
-    const speed = clamp(Math.abs(store.velocity) / 55, 0, 1)
+    // Uses the measured speed, not Lenis's velocity, so the lens also opens during
+    // the attract mode.
+    const speed = clamp(Math.abs(store.scrollSpeed) / 900, 0, 1)
     s.speedFov = damp(s.speedFov, reducedMotion ? 0 : speed * SPEED_FOV, 3, dt)
     const targetFov = baseFov + s.speedFov
 
     // --- layer 3: weight -----------------------------------------------------
-    const lambda = reducedMotion ? 22 : 5
+    /*
+     * The damping adapts to how fast the page is moving.
+     *
+     * A fixed rate has to compromise: tight enough to keep up with a fast dolly
+     * (the attract mode crosses the machine at 650 px/s, and a lag that reads as
+     * weight at walking pace reads as the camera trailing behind at that speed) and
+     * loose enough to feel heavy when scrolling slowly. Letting the rate follow the
+     * scroll velocity gives both, and it applies to a fast manual flick as much as
+     * to the attract mode.
+     */
+    // Pixels per second, from the scroll director: about 900 px/s is already the
+    // attract mode at full tilt.
+    const pace = clamp(Math.abs(store.scrollSpeed) / 900, 0, 1)
+    const lambda = reducedMotion ? 22 : 5 + pace * 8
 
     if (!s.initialised) {
       // Land exactly on the opening frame rather than flying in from the origin.
