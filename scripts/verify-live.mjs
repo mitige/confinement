@@ -22,15 +22,20 @@ const FILTER = process.argv[3] || null
  * drawing buffer must never fall below 1920x1080 whatever the viewport.
  */
 const CASES = [
-  { label: '1920x1080  default', width: 1920, height: 1080 },
-  { label: '1440x900   default', width: 1440, height: 900 },
-  { label: '1280x720   default', width: 1280, height: 720 },
-  { label: '1024x640   default', width: 1024, height: 640 },
-  { label: ' 390x844   default (phone)', width: 390, height: 844, mobile: true },
-  { label: '1920x1080  ?minres=off', width: 1920, height: 1080, query: '?minres=off' },
-  { label: '1280x720   ?minres=off', width: 1280, height: 720, query: '?minres=off' },
-  { label: '1440x900   ?gentle=1', width: 1440, height: 900, query: '?gentle=1' },
-  { label: '1440x900   ?adaptive=1', width: 1440, height: 900, query: '?adaptive=1' },
+  // Plain 1080p: the floor equals the window's own pixel size, so there is no
+  // headroom and adaptation is a no-op. This is the honest worst case.
+  { label: '1920x1080 dpr 1.00', width: 1920, height: 1080, dpr: 1 },
+  // A laptop running display scaling: the buffer starts at 1.25x, and the floor
+  // lets it come back to 1080p. Free.
+  { label: '1920x1080 dpr 1.25', width: 1920, height: 1080, dpr: 1.25 },
+  // Retina: the tier starts at dpr 2, four times the floor's pixels. Free, and a
+  // large saving.
+  { label: '1440x900  dpr 2.00', width: 1440, height: 900, dpr: 2 },
+  { label: ' 390x844  dpr 3.00', width: 390, height: 844, dpr: 3, mobile: true },
+  // The escape hatches.
+  { label: '1920x1080 ?static=1', width: 1920, height: 1080, dpr: 1, query: '?static=1' },
+  { label: '1440x900  ?adaptive=1', width: 1440, height: 900, dpr: 2, query: '?adaptive=1' },
+  { label: '1920x1080 ?minres=off', width: 1920, height: 1080, dpr: 1, query: '?minres=off' },
 ]
 
 const browser = await chromium.launch({
@@ -48,7 +53,7 @@ let failures = 0
 for (const test of CASES.filter((c) => !FILTER || c.label.includes(FILTER))) {
   const page = await browser.newPage({
     viewport: { width: test.width, height: test.height },
-    deviceScaleFactor: test.mobile ? 3 : 1,
+    deviceScaleFactor: test.dpr ?? 1,
     isMobile: Boolean(test.mobile),
     hasTouch: Boolean(test.mobile),
     userAgent: test.mobile
@@ -69,7 +74,9 @@ for (const test of CASES.filter((c) => !FILTER || c.label.includes(FILTER))) {
       const el = document.querySelector('[data-act="ignition"]')
       if (el) window.scrollTo(0, el.offsetTop + el.offsetHeight * 0.68)
     })
-    await page.waitForTimeout(/gentle|adaptive/.test(test.query) ? 12_000 : 3_000)
+    // Long enough for the governor to converge: it steps in half-second windows
+    // and climbs slowly.
+    await page.waitForTimeout(test.query?.includes('static') ? 3_000 : 16_000)
 
     const info = await page.evaluate(() => {
       const canvas = document.querySelector('canvas')

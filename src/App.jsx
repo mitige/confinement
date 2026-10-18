@@ -76,9 +76,9 @@ function debugParams() {
      */
     scaleMode: params.get('adaptive') === '1'
       ? 'full'
-      : params.get('gentle') === '1'
-        ? 'gentle'
-        : 'none',
+      : params.get('static') === '1'
+        ? 'none'
+        : 'gentle',
     /** `?minres=off` renders exactly the window's pixel size, with no floor. */
     resolveFloor: params.get('minres') !== 'off',
     /** Anything other than high is an explicit request to spend features. */
@@ -166,12 +166,19 @@ function Experience() {
               dprFor(quality) * (debug.scaleMode === 'none' ? 1 : renderScale)
 
             /*
-             * The floor applies only in the default mode. It exists to guarantee a
-             * 1920x1080 buffer, and it would defeat the point of `?gentle=1` or
-             * `?adaptive=1` to clamp them straight back up — those exist precisely
-             * for machines that cannot afford the floor.
+             * The floor is enforced in the default and static modes, and stepped
+             * aside only for `?adaptive=1`, which exists precisely for a machine
+             * that cannot afford it.
+             *
+             * Keeping the floor on under gentle adaptation is what makes the
+             * default free: on a display whose native density already exceeds
+             * 1080p — Retina, phones, anything running display scaling — the
+             * governor can shed resolution down to 1080p and nothing is lost,
+             * because the window never had more detail than that to show. On a
+             * plain 1080p window at dpr 1 there is no headroom and it does
+             * nothing, rather than quietly softening the image.
              */
-            const floorApplies = debug.resolveFloor && debug.scaleMode === 'none'
+            const floorApplies = debug.resolveFloor && debug.scaleMode !== 'full'
             if (!floorApplies) return Math.max(MIN_DPR, scaled)
 
             /*

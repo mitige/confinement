@@ -30,13 +30,15 @@ const HEAVY_ACT = 'ignition'
 const HEAVY_AT = 0.68
 
 const CASES = [
-  // The ghost swap is A/B tested: ?ghost=0.001 disables it entirely, so the pair
-  // below differ in nothing but the material a ghosted assembly renders with.
-  { label: '1920x1080 ghost ON', width: 1920, height: 1080, dpr: 1 },
-  { label: '1920x1080 ghost OFF', width: 1920, height: 1080, dpr: 1, query: '?ghost=0.001' },
-  { label: '1920x1080 ghost + gentle', width: 1920, height: 1080, dpr: 1, query: '?gentle=1' },
-  { label: '1440x900  ghost ON (2.07 Mpx)', width: 1440, height: 900, dpr: 1 },
-  { label: ' 390x844  dpr 3  ghost ON', width: 390, height: 844, dpr: 3, mobile: true },
+  // The default across display densities: the lower rows are the machines where
+  // adaptation costs nothing, because the screen never had that detail to show.
+  { label: '1920x1080 dpr 1.00 default', width: 1920, height: 1080, dpr: 1 },
+  { label: '1920x1080 dpr 1.25 default', width: 1920, height: 1080, dpr: 1.25 },
+  { label: '1440x900  dpr 2.00 default', width: 1440, height: 900, dpr: 2 },
+  { label: '1920x1080 ?static=1', width: 1920, height: 1080, dpr: 1, query: '?static=1' },
+  { label: '1920x1080 ?adaptive=1', width: 1920, height: 1080, dpr: 1, query: '?adaptive=1' },
+  { label: '1920x1080 msaa=4 (old AA)', width: 1920, height: 1080, dpr: 1, query: '?msaa=4&aa=off' },
+  { label: ' 390x844  dpr 3  default', width: 390, height: 844, dpr: 3, mobile: true },
   { label: '1920x1080 reduced-motion', width: 1920, height: 1080, dpr: 1, reduced: true },
 ]
 

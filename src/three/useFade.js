@@ -8,10 +8,17 @@ import { applyGhost, ghostMaterial, material, setOpacity } from './materials/pbr
 /**
  * Crossing point for the ghost swap.
  *
- * `?ghost=N` forces it, which is how the two appearances are compared at the same
- * opacity — the thing that actually decides whether the swap is visible.
+ * Deliberately the same value as the opaque threshold in `setOpacity`, which closes
+ * a gap that used to exist between them: an assembly at 90% opacity fell in
+ * [ghost, opaque) and so rendered as a fully shaded PBR surface with transparency
+ * and no depth writing — the single most expensive combination available — for
+ * something that is nine tenths solid. With the two thresholds equal, every
+ * assembly is either opaque PBR or a cheap ghost, and nothing lands in between.
+ *
+ * `?ghost=N` moves it, which is how the two appearances are compared at the same
+ * opacity — the thing that decides whether the swap is visible.
  */
-export const DEFAULT_GHOST_THRESHOLD = 0.85
+export const DEFAULT_GHOST_THRESHOLD = 0.94
 
 function ghostThreshold() {
   if (typeof window === 'undefined') return DEFAULT_GHOST_THRESHOLD
