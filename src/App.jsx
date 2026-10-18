@@ -40,17 +40,18 @@ function FrameGate({ onReady }) {
 /**
  * Switches, read from the query string.
  *
- *   ?adaptive=1        let the render resolution fall to hold the frame rate
+ *   ?gentle=1          allow a 30% linear resolution reduction to hold the frame rate
+ *   ?adaptive=1        allow the full range, down to half resolution
  *   ?quality=medium    cap the feature tier (bloom quality, MSAA, dpr ceiling)
- *   ?res=1             pin an exact render scale, 0.5 to 1
+ *   ?res=0.7           pin an exact render scale, 0.5 to 1
  *   ?fx=0              skip post-processing entirely
  *   ?exposure=2        scale every light, for finding a level quickly
  *   ?rig=top           force a lighting rig, to compare moods without scrolling
  *
- * The defaults are maximum quality and full resolution. That is a deliberate
- * choice against smoothness: the adaptive governor exists and works, but it is
- * opt-in, because a portfolio that looks soft by default is a worse failure than
- * one that occasionally drops a frame.
+ * The default is maximum quality at **full resolution, with no adaptation**. The
+ * governor is capable and tuned, but it is strictly opt-in: nothing reduces the
+ * render scale unless it is asked for. `npm run perf` documents what that costs —
+ * roughly half the frame rate on weak hardware, traded for a sharp image.
  *
  * Harmless in production: absent parameters change nothing.
  */
@@ -65,17 +66,19 @@ function debugParams() {
     /** Pins the render scale, 1 means native. */
     forcedScale: params.has('res') ? Number(params.get('res')) : null,
     /**
-     * How much resolution the governor may spend.
+     * How much resolution the governor may spend. Nothing, unless asked.
      *
-     *   gentle (default)  at most 28% linear, which is near invisible
-     *   full  ?adaptive=1   down to half, for a machine that needs it
-     *   none  ?static=1     nothing, for absolute maximum sharpness
+     *   none   (default)    full resolution, no adaptation
+     *   gentle ?gentle=1    at most 30% linear, which is close to invisible
+     *   full   ?adaptive=1  down to half, for a machine that needs it
+     *
+     * `?static=1` is still accepted, and is the same as the default.
      */
-    scaleMode: params.get('static') === '1'
-      ? 'none'
-      : params.get('adaptive') === '1'
-        ? 'full'
-        : 'gentle',
+    scaleMode: params.get('adaptive') === '1'
+      ? 'full'
+      : params.get('gentle') === '1'
+        ? 'gentle'
+        : 'none',
     /** Anything other than high is an explicit request to spend features. */
     tier: tier === 'medium' || tier === 'low' ? tier : 'high',
   }

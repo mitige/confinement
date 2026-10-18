@@ -186,28 +186,30 @@ and no act exceeds the three-ghosted-layer budget.
 
 ### Resolution and smoothness
 
-These pull against each other, so the default is neither extreme. Measured on a
-2-compute-unit integrated GPU in the heaviest act at 1440×900:
+**The default is full resolution with no adaptation.** Nothing reduces the render
+scale unless it is asked for. That is a deliberate choice against smoothness, and it
+is worth knowing what it costs — measured on a 2-compute-unit integrated GPU in the
+heaviest act at 1440×900:
 
 | mode | fps | median frame | p95/median | render scale |
 |---|---|---|---|---|
-| `?static=1` — no adaptation | 16–18 | 50–67 ms | 1.25 | 1.00 |
-| **default — gentle** | **35–40** | **17–33 ms** | **1.00** | 0.70 |
+| **default — full resolution** | **16–18** | **50–67 ms** | 1.25 | 1.00 |
+| `?gentle=1` — at most 30% linear | 35–40 | 17–33 ms | 1.00 | 0.70 |
 | `?adaptive=1` — full range | 34–39 | 33 ms | 1.01 | 0.70 |
 
-The interesting column is the last but one. A run that averages 40 fps while
-alternating 20 and 80 ms frames looks far worse than a steady 30 fps lock, and only
-the distribution shows the difference — which is why `npm run perf` reports
-percentiles rather than a frame rate. Both adaptive modes land on a stable lock;
-the static mode oscillates between two and four vsync intervals.
+The column worth reading is the one before last. A run averaging 40 fps while
+alternating 20 and 80 ms frames looks worse than a steady 30 fps lock, and only the
+distribution shows it — which is why `npm run perf` reports percentiles rather than
+a frame rate. The adaptive modes land on a stable lock; full resolution oscillates
+between two and four vsync intervals on this GPU.
 
-The default spends at most 30% of linear resolution, which is 0.49× the pixels and
-roughly 1.8× the frame rate. That is close to invisible under bloom and film grain.
-The full range goes to half, for a machine that needs it.
+On hardware with a real graphics chip the default is simply correct and the rest of
+this section does not apply. The adaptation exists for the machines where it does,
+and is one query parameter away.
 
 ### The adaptive path
 
-Adaptation spends resolution first, because the cost of this scene is dominated by
+When switched on, adaptation spends resolution first, because the cost of this scene is dominated by
 fragment work — full-screen ghosted layers plus the additive plasma shader — and because losing
 sharpness is far less noticeable than losing the glow. Only when resolution has bottomed out does
 the governor shed bloom, vignette and MSAA. Because the lever is the canvas, the typography is

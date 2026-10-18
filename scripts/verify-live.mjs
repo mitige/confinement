@@ -16,7 +16,8 @@ import { chromium } from 'playwright-core'
 const URL = process.argv[2] || 'https://mitige.github.io/confinement/'
 
 const CASES = [
-  { label: 'default (max quality)', query: '' },
+  { label: 'default (full res)', query: '' },
+  { label: '?gentle=1', query: '?gentle=1' },
   { label: '?adaptive=1', query: '?adaptive=1' },
   { label: '?quality=medium', query: '?quality=medium' },
   { label: '?res=0.7', query: '?res=0.7' },
@@ -45,7 +46,7 @@ for (const test of CASES) {
       const el = document.querySelector('[data-act="ignition"]')
       if (el) window.scrollTo(0, el.offsetTop + el.offsetHeight * 0.68)
     })
-    await page.waitForTimeout(test.query.includes('adaptive') ? 12_000 : 3_000)
+    await page.waitForTimeout(/gentle|adaptive/.test(test.query) ? 12_000 : 3_000)
 
     const info = await page.evaluate(() => {
       const canvas = document.querySelector('canvas')
